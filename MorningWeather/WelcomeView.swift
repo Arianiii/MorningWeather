@@ -1,60 +1,35 @@
 
 import SwiftUI
-import Lottie // 1. Import the Lottie library
-
-// A helper view to easily use Lottie animations
-struct LottieView: UIViewRepresentable {
-    let name: String
-    let loopMode: LottieLoopMode
-
-    // Creates the LottieAnimationView
-    func makeUIView(context: Context) -> some UIView {
-        let view = UIView(frame: .zero)
-        let animationView = LottieAnimationView(name: name)
-        animationView.contentMode = .scaleAspectFit
-        animationView.loopMode = loopMode
-        animationView.play()
-        
-        animationView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(animationView)
-        
-        NSLayoutConstraint.activate([
-            animationView.heightAnchor.constraint(equalTo: view.heightAnchor),
-            animationView.widthAnchor.constraint(equalTo: view.widthAnchor)
-        ])
-        
-        return view
-    }
-
-    // This function is required but we don't need to update the view from here
-    func updateUIView(_ uiView: UIViewType, context: Context) {}
-}
-
+import SplineRuntime // 1. Import the Spline library
 
 struct WelcomeView: View {
     @Binding var isCompleted: Bool
 
-    @State private var currentAnimationIndex = 0
-    // An array of our Lottie animation file names (without the .json extension)
-    private let weatherAnimations = ["sunny", "cloudy", "rainy", "snowy"]
-
     var body: some View {
         ZStack {
+            // A slightly darker gradient to make the 3D scene pop
             LinearGradient(
-                colors: [.blue, .purple.opacity(0.6)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                colors: [Color(hex: "3d4a6c"), Color(hex: "1a2033")],
+                startPoint: .top,
+                endPoint: .bottom
             )
             .ignoresSafeArea()
 
             VStack(spacing: 30) {
                 Spacer()
                 
-                // 2. The animated Lottie view
-                LottieView(name: weatherAnimations[currentAnimationIndex], loopMode: .loop)
-                    .frame(width: 200, height: 200) // Give the animation a nice size
-                    .id(currentAnimationIndex) // Helps SwiftUI with the transition
-                    .transition(.opacity.combined(with: .scale))
+                // 2. The new 3D Spline View
+                // We load the 3D scene directly from its URL.
+                // Note: This requires an internet connection the first time it loads.
+                if let url = URL(string: "https://prod.spline.design/O7-d-Aqz-i45WH-Y/scene.splinecode") {
+                    try? SplineView(sceneURL: url)
+                        .frame(height: 300) // Give it a larger frame
+                        .ignoresSafeArea(.all)
+                } else {
+                    // Fallback in case the URL is invalid
+                    Image(systemName: "cloud.fill")
+                        .font(.system(size: 150))
+                }
 
 
                 Text("Welcome to MorningWeather")
@@ -85,22 +60,25 @@ struct WelcomeView: View {
                 .padding()
             }
         }
-        .onAppear(perform: startAnimation)
-    }
-
-    private func startAnimation() {
-        Task {
-            while !Task.isCancelled {
-                // Wait for 3 seconds this time to allow the animation to play
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
-                
-                withAnimation(.easeInOut(duration: 0.8)) {
-                    currentAnimationIndex = (currentAnimationIndex + 1) % weatherAnimations.count
-                }
-            }
-        }
     }
 }
+
+// Helper to allow using Hex color codes
+extension Color {
+    init(hex: String) {
+        let scanner = Scanner(string: hex)
+        _ = scanner.scanString("#")
+        
+        var rgb: UInt64 = 0
+        scanner.scanHexInt64(&rgb)
+        
+        let r = Double((rgb >> 16) & 0xFF) / 255.0
+        let g = Double((rgb >> 8) & 0xFF) / 255.0
+        let b = Double((rgb >> 0) & 0xFF) / 255.0
+        self.init(red: r, green: g, blue: b)
+    }
+}
+
 
 struct WelcomeView_Previews: PreviewProvider {
     static var previews: some View {
