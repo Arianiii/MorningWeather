@@ -2,15 +2,15 @@
 import SwiftUI
 import MapKit
 import Lottie
-import CoreLocation // Needed for CLLocation
+import CoreLocation
 
 // MARK: - Weather Service (using OpenWeatherMap)
 @MainActor
 class WeatherService: ObservableObject {
-    @Published var weatherData: OpenWeatherResponse? // Holds raw data from OpenWeatherMap
-    @Published var errorMessage: String? // To hold error messages
+    @Published var weatherData: OpenWeatherResponse?
+    @Published var errorMessage: String?
 
-    private let apiKey = "dca771ea4f512ddfece257fb57686565" // Your OpenWeatherMap API Key
+    private let apiKey = "dca771ea4f512ddfece257fb57686565"
 
     func fetchWeather(for location: CLLocation) async {
         self.weatherData = nil
@@ -44,12 +44,11 @@ class WeatherService: ObservableObject {
 }
 
 // MARK: - OpenWeatherMap Data Models
-// Structure to match the OpenWeatherMap API response for current weather
 struct OpenWeatherResponse: Codable {
     let name: String
     let main: Main
     let weather: [Weather]
-    let sys: Sys // Added for sunrise/sunset times
+    let sys: Sys
 
     struct Main: Codable {
         let temp: Double
@@ -60,17 +59,16 @@ struct OpenWeatherResponse: Codable {
 
     struct Weather: Codable {
         let id: Int
-        let main: String // e.g., "Clear", "Clouds", "Rain"
-        let description: String // e.g., "clear sky", "few clouds"
-        let icon: String // e.g., "01d", "04n"
+        let main: String
+        let description: String
+        let icon: String
     }
     
     struct Sys: Codable {
-        let sunrise: Date // Unix timestamp
-        let sunset: Date // Unix timestamp
+        let sunrise: Date
+        let sunset: Date
     }
     
-    // Helper to determine if it's daytime based on sunrise/sunset
     var isDaytime: Bool {
         let now = Date()
         return now >= sys.sunrise && now < sys.sunset
@@ -91,7 +89,7 @@ struct LottieView: UIViewRepresentable {
     func makeUIView(context: Context) -> UIView {
         let view = UIView(frame: .zero)
         let animationView = LottieAnimationView(name: name)
-        animationView.contentMode = .scaleAspectFill // Changed to fill for background animations
+        animationView.contentMode = .scaleAspectFill
         animationView.loopMode = loopMode
         animationView.play()
         animationView.translatesAutoresizingMaskIntoConstraints = false
@@ -105,26 +103,23 @@ struct LottieView: UIViewRepresentable {
     func updateUIView(_ uiView: UIView, context: Context) {}
 }
 
-// A view that shows a Lottie animation based on the weather condition and time of day
+// A view that shows a Lottie animation based on the weather condition
 struct WeatherAnimationView: View {
     let openWeatherConditionMain: String // e.g., "Clouds", "Rain", "Clear"
-    let isDaytime: Bool
 
     var body: some View {
         LottieView(name: animationName, loopMode: .loop)
     }
     
-    // Helper to map OpenWeatherMap conditions to our Lottie file names
+    // Updated helper to map OpenWeatherMap conditions to new Lottie file names
     private var animationName: String {
-        let baseName: String
         switch openWeatherConditionMain.lowercased() {
-        case "clear", "sunny": baseName = "weather_sunny"
-        case "clouds", "cloudy", "fog": baseName = "weather_cloudy"
-        case "rain", "drizzle", "thunderstorm": baseName = "weather_rainy"
-        case "snow": baseName = "weather_snowy"
-        default: baseName = "weather_cloudy"
+        case "clear", "sunny": return "Weather-sunny"
+        case "clouds", "cloudy", "fog": return "Weather-windy"
+        case "rain", "drizzle", "thunderstorm": return "Weather-night" // Using night as a rainy placeholder
+        case "snow": return "Weather-night" // Using night as a snowy placeholder
+        default: return "Weather-windy"
         }
-        return "\(baseName)\(isDaytime ? "_day" : "_night")"
     }
 }
 
