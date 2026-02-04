@@ -1,13 +1,12 @@
 
 import SwiftUI
-import SplineRuntime // 1. Import the Spline library
+import SplineRuntime
 
 struct WelcomeView: View {
     @Binding var isCompleted: Bool
 
     var body: some View {
         ZStack {
-            // A slightly darker gradient to make the 3D scene pop
             LinearGradient(
                 colors: [Color(hex: "3d4a6c"), Color(hex: "1a2033")],
                 startPoint: .top,
@@ -18,19 +17,18 @@ struct WelcomeView: View {
             VStack(spacing: 30) {
                 Spacer()
                 
-                // 2. The new 3D Spline View
-                // We load the 3D scene directly from its URL.
-                // Note: This requires an internet connection the first time it loads.
+                // --- FIXED LINE ---
+                // The parameter name has been updated from `sceneURL` to `sceneFileURL`
+                // to match the newer version of the Spline library.
                 if let url = URL(string: "https://prod.spline.design/O7-d-Aqz-i45WH-Y/scene.splinecode") {
-                    try? SplineView(sceneURL: url)
-                        .frame(height: 300) // Give it a larger frame
+                    try? SplineView(sceneFileURL: url) // Corrected parameter name
+                        .frame(height: 300)
                         .ignoresSafeArea(.all)
                 } else {
-                    // Fallback in case the URL is invalid
                     Image(systemName: "cloud.fill")
                         .font(.system(size: 150))
                 }
-
+                // --- END OF FIX ---
 
                 Text("Welcome to MorningWeather")
                     .font(.largeTitle)
@@ -63,7 +61,6 @@ struct WelcomeView: View {
     }
 }
 
-// Helper to allow using Hex color codes
 extension Color {
     init(hex: String) {
         let scanner = Scanner(string: hex)
@@ -78,7 +75,6 @@ extension Color {
         self.init(red: r, green: g, blue: b)
     }
 }
-
 
 struct WelcomeView_Previews: PreviewProvider {
     static var previews: some View {
