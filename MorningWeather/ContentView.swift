@@ -2,70 +2,72 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var weatherService = WeatherService()
+    // We create a single instance of our LocationManager to be used by the app.
+    @StateObject private var locationManager = LocationManager()
     
-    var body: some View {
-        // Use a ZStack to layer the background behind the content
-        ZStack {
-            // 1. A colorful gradient background, consistent with the welcome screen
-            LinearGradient(
-                colors: [.blue, .cyan.opacity(0.7)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            
-            // 2. Main content VStack
-            VStack(spacing: 20) {
-                if let weather = weatherService.weather {
-                    
-                    Text("Cupertino") // Example city name
-                        .font(.largeTitle)
-                        .foregroundColor(.white)
-                        .shadow(radius: 5)
-                    
-                    Text(weather.currentWeather.condition.description)
-                        .font(.title2)
-                        .foregroundColor(.white.opacity(0.8))
-                    
-                    Spacer().frame(height: 30)
-                    
-                    // --- FIXED SECTION ---
-                    // Use an HStack to reliably combine the temperature and degree symbol
-                    HStack(alignment: .firstTextBaseline, spacing: 0) {
-                        Text("\(weather.currentWeather.temperature.formatted().dropLast())")
-                            .font(.system(size: 80, weight: .bold))
-                        
-                        Text("°")
-                            .font(.system(size: 80, weight: .semibold))
-                            .foregroundColor(.white.opacity(0.8))
-                    }
-                    .foregroundColor(.white)
-                    .shadow(radius: 10)
-                    // --- END OF FIX ---
-                    
-                    Text("Feels like: \(weather.currentWeather.apparentTemperature.formatted())")
-                        .foregroundColor(.white.opacity(0.9))
+    // State to control showing the "Add Location" sheet.
+    @State private var isAddingLocation = false
 
-                } else {
-                    // Loading view
-                    ProgressView()
-                        .tint(.white)
-                    Text("Fetching weather data...")
-                        .foregroundColor(.white)
+    var body: some View {
+        // Use a NavigationView to get a title bar and navigation capabilities.
+        NavigationView {
+            ZStack {
+                // Same background as the welcome screen for consistency.
+                LinearGradient(
+                    colors: [Color(hex: "3d4a6c"), Color(hex: "1a2033")],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+                
+                // If there are no saved locations, show a helpful message.
+                if locationManager.savedLocations.isEmpty {
+                    Text("No locations added yet.\nTap the '+' button to add a city.")
+                        .font(.headline)
+                        .foregroundColor(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
                         .padding()
                 }
+                
+                // The list of saved locations.
+                List {
+                    // Loop through each saved location.
+                    ForEach(locationManager.savedLocations) { location in
+                        // For now, we just show the name.
+                        // Later, we will turn this into a beautiful weather summary row.
+                        Text(location.name)
+                            .font(.title2)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                            .padding(.vertical)
+                    }
+                    // Enable the "swipe to delete" functionality.
+                    .onDelete(perform: locationManager.removeLocation)
+                    .listRowBackground(Color.white.opacity(0.1))
+                }
+                .listStyle(.plain) // Use a plain style for a modern look.
             }
-            .padding()
-            // 3. Apply the "glass" material effect as a background to our content
-            .background(.ultraThinMaterial)
-            .cornerRadius(20)
-            .padding()
-
+            .navigationTitle("Your Locations")
+            .navigationBarTitleDisplayMode(.inline)
+            // Add a '+' button to the top-right corner.
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { isAddingLocation = true }) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
+                    }
+                }
+            }
+            // When the '+' button is tapped, this sheet will appear.
+            .sheet(isPresented: $isAddingLocation) {
+                // We will create this AddLocationView in the next step.
+                // For now, it's just a placeholder.
+                Text("Search for a new location")
+            }
         }
-        .onAppear {
-            weatherService.fetchWeatherForCurrentLocation()
-        }
+        // Style the navigation bar for our dark theme.
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.dark)
     }
 }
 
