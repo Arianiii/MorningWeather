@@ -1,41 +1,31 @@
 
 import SwiftUI
-import AVKit // 1. Import Apple's Audio/Video Kit
+import Lottie
 
-// A helper view to play the video on a loop
-struct LoopingPlayerView: View {
-    // We need an AVPlayer instance
-    @State private var player = AVPlayer()
-    
-    var body: some View {
-        VideoPlayer(player: player)
-            // Use .onAppear to set up and start the video
-            .onAppear {
-                // Find the video file in our project
-                guard let fileURL = Bundle.main.url(forResource: "background_video", withExtension: "mp4") else {
-                    print("Video file not found.")
-                    return
-                }
-                
-                // Create a player item
-                let playerItem = AVPlayerItem(url: fileURL)
-                
-                // Set up the player
-                player.replaceCurrentItem(with: playerItem)
-                player.isMuted = true // Mute the video
-                player.play() // Start playing
-                
-                // Set up an observer to loop the video when it ends
-                NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: player.currentItem, queue: .main) { _ in
-                    player.seek(to: .zero) // Go back to the start
-                    player.play() // Play again
-                }
-            }
-            // Use .onDisappear to clean up the observer
-            .onDisappear {
-                NotificationCenter.default.removeObserver(self)
-            }
+// We keep the LottieView helper from before
+struct LottieView: UIViewRepresentable {
+    let name: String
+    let loopMode: LottieLoopMode
+
+    func makeUIView(context: Context) -> some UIView {
+        let view = UIView(frame: .zero)
+        let animationView = LottieAnimationView(name: name)
+        animationView.contentMode = .scaleAspectFill // Use scaleAspectFill for backgrounds
+        animationView.loopMode = loopMode
+        animationView.play()
+        
+        animationView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(animationView)
+        
+        NSLayoutConstraint.activate([
+            animationView.heightAnchor.constraint(equalTo: view.heightAnchor),
+            animationView.widthAnchor.constraint(equalTo: view.widthAnchor)
+        ])
+        
+        return view
     }
+
+    func updateUIView(_ uiView: UIViewType, context: Context) {}
 }
 
 
@@ -43,23 +33,25 @@ struct WelcomeView: View {
     @Binding var isCompleted: Bool
 
     var body: some View {
-        // Use a ZStack to layer the content on top of the video
         ZStack {
-            // 2. The looping video player as the background
-            LoopingPlayerView()
-                .ignoresSafeArea() // Make it fill the whole screen
-                .blur(radius: 3) // Add a slight blur for a softer look
-                .scaleEffect(1.2) // Zoom in a bit to avoid black edges
+            // 1. Use the LottieView as our new animated background
+            LottieView(name: "sky_background", loopMode: .loop)
+                .ignoresSafeArea()
 
-            // A semi-transparent overlay to make the text more readable
-            Color.black.opacity(0.3).ignoresSafeArea()
-
-            // 3. The rest of our UI content, unchanged
+            // A subtle gradient overlay to enhance readability
+            LinearGradient(
+                colors: [.black.opacity(0.3), .clear, .black.opacity(0.4)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            
+            // 2. The rest of the UI, on top of the animation
             VStack(spacing: 30) {
                 Spacer()
 
                 Text("Welcome to MorningWeather")
-                    .font(.system(size: 44, weight: .bold))
+                    .font(.system(size: 48, weight: .bold))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .shadow(radius: 10)
@@ -88,8 +80,6 @@ struct WelcomeView: View {
     }
 }
 
-// Preview Provider remains unchanged, but the video won't play in the canvas.
-// You must run the app in the Simulator to see the video.
 struct WelcomeView_Previews: PreviewProvider {
     static var previews: some View {
         WelcomeView(isCompleted: .constant(false))
