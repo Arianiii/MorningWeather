@@ -1,6 +1,8 @@
 
 import SwiftUI
+import MapKit // <-- THE MISSING IMPORT
 
+// This view is also very clean and uses helpers from Helpers.swift.
 struct ContentView: View {
     @State private var searchText = ""
     @State private var searchResults: [SearchResult] = []
