@@ -4,10 +4,15 @@ import SwiftUI
 struct WelcomeView: View {
     @Binding var isCompleted: Bool
 
+    // 1. State variables to control the animation
+    @State private var currentIconIndex = 0
+    // An array of SF Symbols representing different weather conditions
+    private let weatherIcons = ["sun.max.fill", "cloud.fill", "cloud.rain.fill", "snow"]
+    // An array of colors corresponding to each weather icon
+    private let weatherColors: [Color] = [.yellow, .gray.opacity(0.8), .blue.opacity(0.7), .white]
+
     var body: some View {
-        // Use a ZStack to layer the background behind the content
         ZStack {
-            // 1. A colorful gradient background that will be visible through the glass effect
             LinearGradient(
                 colors: [.blue, .purple.opacity(0.6)],
                 startPoint: .topLeading,
@@ -15,15 +20,20 @@ struct WelcomeView: View {
             )
             .ignoresSafeArea()
 
-            // 2. The main content
             VStack(spacing: 30) {
                 Spacer()
                 
-                Image(systemName: "sun.max.fill")
+                // 2. The animated Image view
+                Image(systemName: weatherIcons[currentIconIndex])
                     .font(.system(size: 100))
-                    .foregroundColor(.yellow)
+                    // The color of the icon will also animate
+                    .foregroundColor(weatherColors[currentIconIndex])
                     .padding()
                     .shadow(color: .black.opacity(0.3), radius: 10, y: 10)
+                    // 3. Define a smooth transition for when the icon changes
+                    .transition(.opacity.combined(with: .scale))
+                    // Using .id() helps SwiftUI understand that the view has changed, ensuring a smooth transition
+                    .id(currentIconIndex)
 
                 Text("Welcome to MorningWeather")
                     .font(.largeTitle)
@@ -40,20 +50,37 @@ struct WelcomeView: View {
                 
                 Spacer()
                 
-                Button(action: {
-                    isCompleted = true
-                }) {
+                Button(action: { isCompleted = true }) {
                     Text("Get Started")
                         .font(.title3)
                         .fontWeight(.semibold)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        // 3. Apply the "glass" material effect to the button's background
                         .background(.ultraThinMaterial)
                         .foregroundColor(.primary)
                         .cornerRadius(15)
                 }
                 .padding()
+            }
+        }
+        // 4. Start the animation when the view appears
+        .onAppear(perform: startIconAnimation)
+    }
+
+    // A function to handle the animation logic
+    private func startIconAnimation() {
+        // We use a Task for modern, safe background work in SwiftUI
+        Task {
+            // This loop will run as long as the view is visible
+            while !Task.isCancelled {
+                // Wait for 2 seconds before changing the icon
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                
+                // Animate the change
+                withAnimation(.easeInOut(duration: 1.0)) {
+                    // Move to the next icon in the array, looping back to the start if needed
+                    currentIconIndex = (currentIconIndex + 1) % weatherIcons.count
+                }
             }
         }
     }
