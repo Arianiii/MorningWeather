@@ -49,6 +49,7 @@ struct OpenWeatherResponse: Codable {
     let name: String
     let main: Main
     let weather: [Weather]
+    let sys: Sys // Added for sunrise/sunset times
 
     struct Main: Codable {
         let temp: Double
@@ -63,8 +64,18 @@ struct OpenWeatherResponse: Codable {
         let description: String // e.g., "clear sky", "few clouds"
         let icon: String // e.g., "01d", "04n"
     }
+    
+    struct Sys: Codable {
+        let sunrise: Date // Unix timestamp
+        let sunset: Date // Unix timestamp
+    }
+    
+    // Helper to determine if it's daytime based on sunrise/sunset
+    var isDaytime: Bool {
+        let now = Date()
+        return now >= sys.sunrise && now < sys.sunset
+    }
 }
-
 
 // MARK: - Data Models (Existing)
 struct SearchResult: Identifiable {
@@ -80,7 +91,7 @@ struct LottieView: UIViewRepresentable {
     func makeUIView(context: Context) -> UIView {
         let view = UIView(frame: .zero)
         let animationView = LottieAnimationView(name: name)
-        animationView.contentMode = .scaleAspectFit
+        animationView.contentMode = .scaleAspectFill // Changed to fill for background animations
         animationView.loopMode = loopMode
         animationView.play()
         animationView.translatesAutoresizingMaskIntoConstraints = false
@@ -94,9 +105,10 @@ struct LottieView: UIViewRepresentable {
     func updateUIView(_ uiView: UIView, context: Context) {}
 }
 
-// A view that shows a Lottie animation based on the weather condition
+// A view that shows a Lottie animation based on the weather condition and time of day
 struct WeatherAnimationView: View {
     let openWeatherConditionMain: String // e.g., "Clouds", "Rain", "Clear"
+    let isDaytime: Bool
 
     var body: some View {
         LottieView(name: animationName, loopMode: .loop)
@@ -104,13 +116,15 @@ struct WeatherAnimationView: View {
     
     // Helper to map OpenWeatherMap conditions to our Lottie file names
     private var animationName: String {
+        let baseName: String
         switch openWeatherConditionMain.lowercased() {
-        case "clear", "sunny": return "weather_sunny"
-        case "clouds", "cloudy", "fog": return "weather_cloudy"
-        case "rain", "drizzle", "thunderstorm": return "weather_rainy"
-        case "snow": return "weather_snowy"
-        default: return "weather_cloudy"
+        case "clear", "sunny": baseName = "weather_sunny"
+        case "clouds", "cloudy", "fog": baseName = "weather_cloudy"
+        case "rain", "drizzle", "thunderstorm": baseName = "weather_rainy"
+        case "snow": baseName = "weather_snowy"
+        default: baseName = "weather_cloudy"
         }
+        return "\(baseName)\(isDaytime ? "_day" : "_night")"
     }
 }
 

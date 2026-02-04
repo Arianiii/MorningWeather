@@ -1,8 +1,6 @@
 
 import SwiftUI
-import MapKit // <-- THE MISSING IMPORT
 
-// This view is also very clean and uses helpers from Helpers.swift.
 struct ContentView: View {
     @State private var searchText = ""
     @State private var searchResults: [SearchResult] = []
@@ -12,9 +10,19 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Color(hex: "3d4a6c"), Color(hex: "1a2033")], startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea()
+            // Dynamic gradient background based on time of day
+            if let weather = weatherService.weatherData, weather.isDaytime {
+                LinearGradient(colors: [Color(hex: "87CEEB"), Color(hex: "B0E0E6")], startPoint: .top, endPoint: .bottom) // Day colors
+                    .ignoresSafeArea()
+            } else if let weather = weatherService.weatherData, !weather.isDaytime {
+                LinearGradient(colors: [Color(hex: "1A2033"), Color(hex: "3D4A6C")], startPoint: .top, endPoint: .bottom) // Night colors
+                    .ignoresSafeArea()
+            } else {
+                LinearGradient(colors: [Color(hex: "3d4a6c"), Color(hex: "1a2033")], startPoint: .top, endPoint: .bottom) // Default/Loading colors
+                    .ignoresSafeArea()
+            }
             
+            // Content VStack (remains largely the same)
             VStack(spacing: 20) {
                 if selectedLocation == nil {
                     searchSection
@@ -62,7 +70,7 @@ struct ContentView: View {
                 Text(locationName).font(.largeTitle).padding(.top)
                 // Use the 'main' condition string for Lottie animation mapping
                 if let condition = weather.weather.first?.main {
-                    WeatherAnimationView(openWeatherConditionMain: condition).frame(height: 200)
+                    WeatherAnimationView(openWeatherConditionMain: condition, isDaytime: weather.isDaytime).frame(height: 200)
                 }
                 Text("\(Int(weather.main.temp))°C").font(.system(size: 60, weight: .bold))
                 Text(weather.weather.first?.description ?? "").font(.headline)
