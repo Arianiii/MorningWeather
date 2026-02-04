@@ -1,15 +1,42 @@
 
 import SwiftUI
+import Lottie // 1. Import the Lottie library
+
+// A helper view to easily use Lottie animations
+struct LottieView: UIViewRepresentable {
+    let name: String
+    let loopMode: LottieLoopMode
+
+    // Creates the LottieAnimationView
+    func makeUIView(context: Context) -> some UIView {
+        let view = UIView(frame: .zero)
+        let animationView = LottieAnimationView(name: name)
+        animationView.contentMode = .scaleAspectFit
+        animationView.loopMode = loopMode
+        animationView.play()
+        
+        animationView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(animationView)
+        
+        NSLayoutConstraint.activate([
+            animationView.heightAnchor.constraint(equalTo: view.heightAnchor),
+            animationView.widthAnchor.constraint(equalTo: view.widthAnchor)
+        ])
+        
+        return view
+    }
+
+    // This function is required but we don't need to update the view from here
+    func updateUIView(_ uiView: UIViewType, context: Context) {}
+}
+
 
 struct WelcomeView: View {
     @Binding var isCompleted: Bool
 
-    // 1. State variables to control the animation
-    @State private var currentIconIndex = 0
-    // An array of SF Symbols representing different weather conditions
-    private let weatherIcons = ["sun.max.fill", "cloud.fill", "cloud.rain.fill", "snow"]
-    // An array of colors corresponding to each weather icon
-    private let weatherColors: [Color] = [.yellow, .gray.opacity(0.8), .blue.opacity(0.7), .white]
+    @State private var currentAnimationIndex = 0
+    // An array of our Lottie animation file names (without the .json extension)
+    private let weatherAnimations = ["sunny", "cloudy", "rainy", "snowy"]
 
     var body: some View {
         ZStack {
@@ -23,17 +50,12 @@ struct WelcomeView: View {
             VStack(spacing: 30) {
                 Spacer()
                 
-                // 2. The animated Image view
-                Image(systemName: weatherIcons[currentIconIndex])
-                    .font(.system(size: 100))
-                    // The color of the icon will also animate
-                    .foregroundColor(weatherColors[currentIconIndex])
-                    .padding()
-                    .shadow(color: .black.opacity(0.3), radius: 10, y: 10)
-                    // 3. Define a smooth transition for when the icon changes
+                // 2. The animated Lottie view
+                LottieView(name: weatherAnimations[currentAnimationIndex], loopMode: .loop)
+                    .frame(width: 200, height: 200) // Give the animation a nice size
+                    .id(currentAnimationIndex) // Helps SwiftUI with the transition
                     .transition(.opacity.combined(with: .scale))
-                    // Using .id() helps SwiftUI understand that the view has changed, ensuring a smooth transition
-                    .id(currentIconIndex)
+
 
                 Text("Welcome to MorningWeather")
                     .font(.largeTitle)
@@ -63,23 +85,17 @@ struct WelcomeView: View {
                 .padding()
             }
         }
-        // 4. Start the animation when the view appears
-        .onAppear(perform: startIconAnimation)
+        .onAppear(perform: startAnimation)
     }
 
-    // A function to handle the animation logic
-    private func startIconAnimation() {
-        // We use a Task for modern, safe background work in SwiftUI
+    private func startAnimation() {
         Task {
-            // This loop will run as long as the view is visible
             while !Task.isCancelled {
-                // Wait for 2 seconds before changing the icon
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                // Wait for 3 seconds this time to allow the animation to play
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
                 
-                // Animate the change
-                withAnimation(.easeInOut(duration: 1.0)) {
-                    // Move to the next icon in the array, looping back to the start if needed
-                    currentIconIndex = (currentIconIndex + 1) % weatherIcons.count
+                withAnimation(.easeInOut(duration: 0.8)) {
+                    currentAnimationIndex = (currentAnimationIndex + 1) % weatherAnimations.count
                 }
             }
         }
