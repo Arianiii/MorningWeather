@@ -1,6 +1,6 @@
 
 import SwiftUI
-import SplineRuntime
+import SceneKit // 1. Import SceneKit, Apple's native 3D framework
 
 struct WelcomeView: View {
     @Binding var isCompleted: Bool
@@ -17,18 +17,18 @@ struct WelcomeView: View {
             VStack(spacing: 30) {
                 Spacer()
                 
-                // --- FIXED LINE ---
-                // The parameter name has been updated from `sceneURL` to `sceneFileURL`
-                // to match the newer version of the Spline library.
-                if let url = URL(string: "https://prod.spline.design/O7-d-Aqz-i45WH-Y/scene.splinecode") {
-                    try? SplineView(sceneFileURL: url) // Corrected parameter name
-                        .frame(height: 300)
-                        .ignoresSafeArea(.all)
-                } else {
-                    Image(systemName: "cloud.fill")
-                        .font(.system(size: 150))
-                }
-                // --- END OF FIX ---
+                // 2. Use the native SceneView to display a 3D model
+                // We are loading a "stylized_cloud.usdz" model that is now part of our project.
+                SceneView(
+                    // "scene:" expects a SceneKit scene object. We create one from our file.
+                    scene: SCNScene(named: "stylized_cloud.usdz"),
+                    // "options:" allows us to configure the view
+                    options: [
+                        .autoenablesDefaultLighting, // Adds a simple light so the model isn't dark
+                        .allowsCameraControl // Lets the user rotate and zoom the model!
+                    ]
+                )
+                .frame(height: 300)
 
                 Text("Welcome to MorningWeather")
                     .font(.largeTitle)
@@ -65,10 +65,8 @@ extension Color {
     init(hex: String) {
         let scanner = Scanner(string: hex)
         _ = scanner.scanString("#")
-        
         var rgb: UInt64 = 0
         scanner.scanHexInt64(&rgb)
-        
         let r = Double((rgb >> 16) & 0xFF) / 255.0
         let g = Double((rgb >> 8) & 0xFF) / 255.0
         let b = Double((rgb >> 0) & 0xFF) / 255.0
