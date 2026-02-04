@@ -30,14 +30,19 @@ struct ContentView: View {
                     
                     Spacer().frame(height: 30)
                     
-                    Text("\(weather.currentWeather.temperature.formatted().dropLast())") // Remove the unit for custom styling
-                        .font(.system(size: 80, weight: .bold))
-                        .foregroundColor(.white)
-                        .shadow(radius: 10)
-                    + Text("°")
-                        .font(.system(size: 80, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.7))
-                        .shadow(radius: 10)
+                    // --- FIXED SECTION ---
+                    // Use an HStack to reliably combine the temperature and degree symbol
+                    HStack(alignment: .firstTextBaseline, spacing: 0) {
+                        Text("\(weather.currentWeather.temperature.formatted().dropLast())")
+                            .font(.system(size: 80, weight: .bold))
+                        
+                        Text("°")
+                            .font(.system(size: 80, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .foregroundColor(.white)
+                    .shadow(radius: 10)
+                    // --- END OF FIX ---
                     
                     Text("Feels like: \(weather.currentWeather.apparentTemperature.formatted())")
                         .foregroundColor(.white.opacity(0.9))
