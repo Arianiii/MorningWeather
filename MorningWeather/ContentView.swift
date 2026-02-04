@@ -1,13 +1,39 @@
 
 import SwiftUI
-import MapKit // We need MapKit for location search
-import Lottie // We will use Lottie for the weather animations
+import MapKit
+import Lottie
+import WeatherKit // <-- THE MISSING IMPORT
+
+// --- HELPER VIEWS ---
 
 // A simple struct to hold the results of our location search
 struct SearchResult: Identifiable {
     let id = UUID()
     let placemark: MKPlacemark
 }
+
+// A helper view to easily use Lottie animations
+struct LottieView: UIViewRepresentable {
+    let name: String
+    let loopMode: LottieLoopMode
+
+    func makeUIView(context: Context) -> some UIView {
+        let view = UIView(frame: .zero)
+        let animationView = LottieAnimationView(name: name)
+        animationView.contentMode = .scaleAspectFit
+        animationView.loopMode = loopMode
+        animationView.play()
+        animationView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(animationView)
+        NSLayoutConstraint.activate([
+            animationView.heightAnchor.constraint(equalTo: view.heightAnchor),
+            animationView.widthAnchor.constraint(equalTo: view.widthAnchor)
+        ])
+        return view
+    }
+    func updateUIView(_ uiView: UIViewType, context: Context) {}
+}
+
 
 // A view that shows a Lottie animation based on the weather condition
 struct WeatherAnimationView: View {
@@ -29,12 +55,13 @@ struct WeatherAnimationView: View {
         case .snow, .heavySnow, .blizzard, .flurries:
             return "weather_snowy"
         default:
-            // A sensible default
             return "weather_cloudy"
         }
     }
 }
 
+
+// --- MAIN VIEW ---
 
 struct ContentView: View {
     // State for the search text and search results
@@ -47,7 +74,6 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            // A dynamic gradient that could change with the weather later
             LinearGradient(
                 colors: [Color(hex: "3d4a6c"), Color(hex: "1a2033")],
                 startPoint: .top,
@@ -55,18 +81,14 @@ struct ContentView: View {
             )
             .ignoresSafeArea()
             
-            // --- MAIN UI LOGIC ---
             VStack(spacing: 20) {
-                // If no location is selected, show the search UI
                 if selectedLocationName == nil {
                     searchSection
                 } else {
-                    // Otherwise, show the weather display
                     weatherDisplay
                 }
             }
         }
-        // When searchText changes, perform a search
         .onChange(of: searchText) { newValue in
             searchLocations(query: newValue)
         }
@@ -74,7 +96,6 @@ struct ContentView: View {
     
     // --- SUBVIEWS ---
     
-    // The UI for searching for a location
     private var searchSection: some View {
         VStack {
             Spacer()
@@ -82,7 +103,6 @@ struct ContentView: View {
                 .textFieldStyle(.roundedBorder)
                 .padding()
 
-            // Display search results
             if !searchResults.isEmpty {
                 List(searchResults) { result in
                     Button(action: {
@@ -95,25 +115,15 @@ struct ContentView: View {
             }
             Spacer()
         }
-        .transition(.opacity) // Animate the appearance/disappearance
+        .transition(.opacity)
     }
     
-    // The UI for displaying the weather
     private var weatherDisplay: some View {
-        VStack {
-            // A button to go back to search
-            Button("Change Location") {
-                withAnimation {
-                    selectedLocationName = nil
-                    weatherService.weather = nil // Clear old weather data
-                    searchText = ""
-                }
-            }
-            .padding()
-
+        VStack(spacing: 10) {
             if let weather = weatherService.weather, let locationName = selectedLocationName {
                 Text(locationName)
                     .font(.largeTitle)
+                    .padding(.top)
                 
                 WeatherAnimationView(condition: weather.currentWeather.condition)
                     .frame(height: 200)
@@ -122,18 +132,33 @@ struct ContentView: View {
                     .font(.system(size: 60, weight: .bold))
                 
                 Text(weather.currentWeather.condition.description)
+                    .font(.headline)
+                
+                Spacer()
+                
+                Button("Change Location") {
+                    withAnimation {
+                        selectedLocationName = nil
+                        weatherService.weather = nil
+                        searchText = ""
+                    }
+                }
+                .padding()
+
             } else {
-                ProgressView() // Show while loading weather
+                Spacer()
+                ProgressView()
+                    .tint(.white)
+                Text("Fetching weather...")
+                Spacer()
             }
-            Spacer()
         }
         .foregroundColor(.white)
-        .transition(.opacity) // Animate the appearance/disappearance
+        .transition(.opacity)
     }
     
     // --- LOGIC ---
     
-    // Performs a location search using MapKit
     private func searchLocations(query: String) {
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = query
@@ -148,7 +173,6 @@ struct ContentView: View {
         }
     }
     
-    // Handles selecting a location from the search results
     private func selectLocation(_ placemark: MKPlacemark) {
         guard let location = placemark.location else { return }
         
@@ -157,7 +181,6 @@ struct ContentView: View {
             self.searchResults = []
             self.searchText = ""
             
-            // Fetch weather for the selected location
             Task {
                 await weatherService.fetchWeather(for: location)
             }
@@ -165,7 +188,8 @@ struct ContentView: View {
     }
 }
 
-// We need this for the placemark's title property
+// --- EXTENSIONS ---
+
 extension MKPlacemark {
     var title: String? {
         let name = self.name ?? ""
