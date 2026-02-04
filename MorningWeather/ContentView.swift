@@ -1,13 +1,11 @@
 
 import SwiftUI
-import MapKit
 
-// This view is also very clean and uses helpers from Helpers.swift.
 struct ContentView: View {
     @State private var searchText = ""
     @State private var searchResults: [SearchResult] = []
     
-    @StateObject private var weatherService = WeatherService()
+    @StateObject private var weatherService = WeatherService() // Now uses OpenWeatherMap
     @State private var selectedLocation: MKPlacemark?
 
     var body: some View {
@@ -45,6 +43,7 @@ struct ContentView: View {
     
     private var weatherDisplay: some View {
         VStack(spacing: 10) {
+            // Display error or weather data
             if let errorMessage = weatherService.errorMessage {
                 Image(systemName: "exclamationmark.triangle.fill").font(.largeTitle).foregroundColor(.yellow)
                 Text("Error").font(.largeTitle)
@@ -55,15 +54,23 @@ struct ContentView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-            } else if let weather = weatherService.weather, let locationName = selectedLocation?.title {
+                
+            } else if let weather = weatherService.weatherData, let locationName = selectedLocation?.title {
+                // Display OpenWeatherMap data
                 Text(locationName).font(.largeTitle).padding(.top)
-                WeatherAnimationView(condition: weather.currentWeather.condition).frame(height: 200) // Lottie animation
-                Text(weather.currentWeather.temperature.formatted()).font(.system(size: 60, weight: .bold))
-                Text(weather.currentWeather.condition.description).font(.headline)
+                // Use the 'main' condition string for Lottie animation mapping
+                if let condition = weather.weather.first?.main {
+                    WeatherAnimationView(openWeatherConditionMain: condition).frame(height: 200)
+                }
+                Text("\(Int(weather.main.temp))°C").font(.system(size: 60, weight: .bold))
+                Text(weather.weather.first?.description ?? "").font(.headline)
+                Text("Feels like: \(Int(weather.main.feels_like))°C").font(.subheadline).opacity(0.8)
+                
             } else {
                 ProgressView().tint(.white)
                 Text("Fetching weather...")
             }
+            
             Spacer()
             Button("Change Location") { withAnimation { selectedLocation = nil; searchText = "" } }.padding()
         }

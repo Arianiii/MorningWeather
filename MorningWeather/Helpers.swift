@@ -1,35 +1,78 @@
 
 import SwiftUI
 import MapKit
-import WeatherKit
 import Lottie
+import CoreLocation // Needed for CLLocation
 
-// MARK: - Weather Service
+// MARK: - Weather Service (using OpenWeatherMap)
 @MainActor
 class WeatherService: ObservableObject {
-    @Published var weather: Weather?
-    @Published var errorMessage: String?
+    @Published var weatherData: OpenWeatherResponse? // Holds raw data from OpenWeatherMap
+    @Published var errorMessage: String? // To hold error messages
 
-    private let service = WeatherKit.WeatherService.shared
+    private let apiKey = "dca771ea4f512ddfece257fb57686565" // Your OpenWeatherMap API Key
 
     func fetchWeather(for location: CLLocation) async {
-        self.weather = nil
+        self.weatherData = nil
         self.errorMessage = nil
+        
+        let urlString = "https://api.openweathermap.org/data/2.5/weather?lat=\(location.coordinate.latitude)&lon=\(location.coordinate.longitude)&appid=\(apiKey)&units=metric"
+        
+        guard let url = URL(string: urlString) else {
+            self.errorMessage = "Invalid API URL."
+            return
+        }
+        
         do {
-            self.weather = try await service.weather(for: location)
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+                print("OpenWeatherMap Error: HTTP Status \(status)")
+                self.errorMessage = "Failed to fetch weather. Check API key or network connection. Status: \(status)"
+                return
+            }
+            
+            let decodedResponse = try JSONDecoder().decode(OpenWeatherResponse.self, from: data)
+            self.weatherData = decodedResponse
+            
         } catch {
-            self.errorMessage = "Failed to fetch weather. Please ensure WeatherKit is enabled in Capabilities."
+            print("OpenWeatherMap Decoding/Network Error: \(error.localizedDescription)")
+            self.errorMessage = "Failed to decode weather data or network error. Details: \(error.localizedDescription)"
         }
     }
 }
 
-// MARK: - Data Models
+// MARK: - OpenWeatherMap Data Models
+// Structure to match the OpenWeatherMap API response for current weather
+struct OpenWeatherResponse: Codable {
+    let name: String
+    let main: Main
+    let weather: [Weather]
+
+    struct Main: Codable {
+        let temp: Double
+        let feels_like: Double
+        let temp_min: Double
+        let temp_max: Double
+    }
+
+    struct Weather: Codable {
+        let id: Int
+        let main: String // e.g., "Clear", "Clouds", "Rain"
+        let description: String // e.g., "clear sky", "few clouds"
+        let icon: String // e.g., "01d", "04n"
+    }
+}
+
+
+// MARK: - Data Models (Existing)
 struct SearchResult: Identifiable {
     let id = UUID()
     let placemark: MKPlacemark
 }
 
-// MARK: - Helper Views
+// MARK: - Helper Views (Existing)
 struct LottieView: UIViewRepresentable {
     let name: String
     let loopMode: LottieLoopMode
@@ -51,15 +94,21 @@ struct LottieView: UIViewRepresentable {
     func updateUIView(_ uiView: UIView, context: Context) {}
 }
 
+// A view that shows a Lottie animation based on the weather condition
 struct WeatherAnimationView: View {
-    let condition: WeatherCondition
-    var body: some View { LottieView(name: animationName, loopMode: .loop) }
+    let openWeatherConditionMain: String // e.g., "Clouds", "Rain", "Clear"
+
+    var body: some View {
+        LottieView(name: animationName, loopMode: .loop)
+    }
+    
+    // Helper to map OpenWeatherMap conditions to our Lottie file names
     private var animationName: String {
-        switch condition {
-        case .clear, .mostlyClear, .hot: return "weather_sunny"
-        case .cloudy, .mostlyCloudy, .foggy, .partlyCloudy: return "weather_cloudy"
-        case .rain, .heavyRain, .strongStorms, .isolatedThunderstorms: return "weather_rainy"
-        case .snow, .heavySnow, .blizzard, .flurries: return "weather_snowy"
+        switch openWeatherConditionMain.lowercased() {
+        case "clear", "sunny": return "weather_sunny"
+        case "clouds", "cloudy", "fog": return "weather_cloudy"
+        case "rain", "drizzle", "thunderstorm": return "weather_rainy"
+        case "snow": return "weather_snowy"
         default: return "weather_cloudy"
         }
     }
@@ -84,7 +133,7 @@ struct FloatingIcon: View {
 }
 
 
-// MARK: - Extensions
+// MARK: - Extensions (Existing)
 extension Color {
     init(hex: String) {
         let scanner = Scanner(string: hex)

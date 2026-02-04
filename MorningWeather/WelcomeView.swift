@@ -1,8 +1,6 @@
 
 import SwiftUI
 
-// This view is now very clean and only contains UI code.
-// It uses the FloatingIcon helper from Helpers.swift.
 struct WelcomeView: View {
     @Binding var isCompleted: Bool
 
@@ -18,20 +16,14 @@ struct WelcomeView: View {
 
                 VStack(spacing: 30) {
                     Spacer()
-                    Text("Welcome to MorningWeather")
-                        .font(.system(size: 48, weight: .bold))
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                        .shadow(radius: 10)
+                    Text("Welcome to MorningWeather").font(.system(size: 48, weight: .bold))
+                        .foregroundColor(.white).multilineTextAlignment(.center).shadow(radius: 10)
                     Text("Get a fresh start to your day with a simple weather forecast right when you wake up.")
-                        .font(.headline)
-                        .foregroundColor(.white.opacity(0.9))
-                        .multilineTextAlignment(.center)
+                        .font(.headline).foregroundColor(.white.opacity(0.9)).multilineTextAlignment(.center)
                         .padding(.horizontal)
                     Spacer()
                     Button(action: { isCompleted = true }) {
-                        Text("Get Started")
-                            .font(.title3).fontWeight(.semibold)
+                        Text("Get Started").font(.title3).fontWeight(.semibold)
                             .frame(maxWidth: .infinity).padding()
                             .background(.white.opacity(0.9)).foregroundColor(.primary)
                             .cornerRadius(15).shadow(radius: 5)
