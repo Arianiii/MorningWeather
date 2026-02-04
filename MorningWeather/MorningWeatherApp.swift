@@ -1,17 +1,17 @@
-//
-//  MorningWeatherApp.swift
-//  MorningWeather
-//
-//  Created by Arian on 2/4/26.
-//
 
 import SwiftUI
 
 @main
 struct MorningWeatherApp: App {
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if hasCompletedOnboarding {
+                ContentView()
+            } else {
+                WelcomeView(isCompleted: $hasCompletedOnboarding)
+            }
         }
     }
 }
