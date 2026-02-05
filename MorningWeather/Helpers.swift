@@ -4,7 +4,7 @@ import MapKit
 import Lottie
 import CoreLocation
 import Foundation
-import UserNotifications // Added for notifications
+import UserNotifications
 
 // MARK: - Notification Manager
 class NotificationManager: ObservableObject {
@@ -21,7 +21,7 @@ class NotificationManager: ObservableObject {
     
     // Schedule a daily morning weather notification
     func scheduleDailyWeatherNotification(for location: CLLocation, weatherData: OpenWeatherResponse) {
-        // 1. Clear any existing notifications before scheduling a new one
+        // Clear any existing notifications before scheduling a new one
         clearPendingNotifications()
 
         UNUserNotificationCenter.current().getNotificationSettings { settings in
@@ -319,8 +319,8 @@ struct WeatherCardView: View {
             // Detail Grid (New Design)
             VStack(spacing: 10) {
                 HStack {
-                    DetailItem(icon: "humidity.fill", label: "Humidity", value: "\(weather.main.humidity)%")
-                    DetailItem(icon: "gauge", label: "Pressure", value: "\(weather.main.pressure) hPa")
+                    DetailItem(icon: "humidity.fill", label: "Humidity", value: "\(weather.main.humidity)%") // FIX 2: Accessing data correctly
+                    DetailItem(icon: "gauge", label: "Pressure", value: "\(weather.main.pressure) hPa") // FIX 2: Accessing data correctly
                 }
                 HStack {
                     DetailItem(icon: "wind", label: "Wind Speed", value: "\(Int(weather.wind.speed * 3.6)) km/h") // Convert m/s to km/h
