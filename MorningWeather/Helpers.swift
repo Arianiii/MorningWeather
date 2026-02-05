@@ -4,7 +4,7 @@ import MapKit
 import Lottie
 import CoreLocation
 import Foundation
-import UserNotifications
+import UserNotifications // Added for notifications
 
 // MARK: - Notification Manager
 class NotificationManager: ObservableObject {
@@ -21,7 +21,9 @@ class NotificationManager: ObservableObject {
     
     // Schedule a daily morning weather notification
     func scheduleDailyWeatherNotification(for location: CLLocation, weatherData: OpenWeatherResponse) {
-        // Check if authorization is granted before scheduling
+        // 1. Clear any existing notifications before scheduling a new one
+        clearPendingNotifications()
+
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             guard settings.authorizationStatus == .authorized else { return }
             
@@ -61,7 +63,7 @@ class NotificationManager: ObservableObject {
                 if let error = error {
                     print("Error scheduling notification: \(error.localizedDescription)")
                 } else {
-                    print("Daily weather notification scheduled.")
+                    print("Daily weather notification scheduled for 8:00 AM.")
                 }
             }
         }
@@ -166,6 +168,9 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
             
             let decodedResponse = try JSONDecoder().decode(OpenWeatherResponse.self, from: data)
             self.weatherData = decodedResponse
+            
+            // --- NEW: Schedule Notification upon successful fetch ---
+            NotificationManager().scheduleDailyWeatherNotification(for: location, weatherData: decodedResponse)
             
         } catch {
             print("OpenWeatherMap Decoding/Network Error: \(error.localizedDescription)")
@@ -314,8 +319,8 @@ struct WeatherCardView: View {
             // Detail Grid (New Design)
             VStack(spacing: 10) {
                 HStack {
-                    DetailItem(icon: "humidity.fill", label: "Humidity", value: "\(weather.main.humidity)%") // FIX 2: Accessing data correctly
-                    DetailItem(icon: "gauge", label: "Pressure", value: "\(weather.main.pressure) hPa") // FIX 2: Accessing data correctly
+                    DetailItem(icon: "humidity.fill", label: "Humidity", value: "\(weather.main.humidity)%")
+                    DetailItem(icon: "gauge", label: "Pressure", value: "\(weather.main.pressure) hPa")
                 }
                 HStack {
                     DetailItem(icon: "wind", label: "Wind Speed", value: "\(Int(weather.wind.speed * 3.6)) km/h") // Convert m/s to km/h
