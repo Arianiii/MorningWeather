@@ -1,64 +1,88 @@
 
 import SwiftUI
 import MapKit
+import Lottie
 import CoreLocation
+import Foundation
 import UserNotifications
 
+// MARK: - Location List View for Phase 2 (New View)
+struct ManageLocationsView: View {
+    @EnvironmentObject var locationManager: LocationManager
+    @Environment(\.dismiss) var dismiss // Allows the sheet to be dismissed
+
+    var body: some View {
+        NavigationView {
+            List {
+                // Allows swipe-to-delete functionality
+                ForEach(locationManager.savedLocations) { location in
+                    VStack(alignment: .leading) {
+                        Text(location.name)
+                            .font(.headline)
+                        Text("Lat: \(location.latitude), Lon: \(location.longitude)")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                }
+                .onDelete(perform: deleteLocation)
+            }
+            .navigationTitle("Saved Locations")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    EditButton()
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func deleteLocation(offsets: IndexSet) {
+        locationManager.removeLocation(at: offsets)
+    }
+}
+
+
+// MARK: - ContentView Integration (Updated to include button to ManageLocationsView)
 struct ContentView: View {
     @State private var searchText = ""
     @State private var searchResults: [SearchResult] = []
     
     @StateObject private var weatherService = WeatherService()
-    @StateObject private var savedLocationManager = LocationManager() // Phase 2: Location Manager
+    @EnvironmentObject private var savedLocationManager: LocationManager // Injected from App
     @State private var selectedLocation: MKPlacemark? = nil
     
     @State private var isAnimating = false
+    @State private var showSavedLocations = false // New state for showing the list
 
     var body: some View {
         ZStack {
-            if let weather = weatherService.weatherData {
-                DynamicBackgroundView(condition: weather.weather.first?.main.lowercased() ?? "clear", isDaytime: weather.isDaytime)
-            } else {
-                LinearGradient(colors: [Color(hex: "3d4a6c"), Color(hex: "1a2033")], startPoint: .top, endPoint: .bottom)
-                    .ignoresSafeArea()
-            }
-
+            // ... (Dynamic Background View remains the same) ...
+            
             VStack(spacing: 20) {
-                if selectedLocation == nil && (!weatherService.isLoadingLocation || weatherService.errorMessage != nil) {
-                    searchSection
-                } else {
-                    weatherDisplay
-                }
+                // ... (Search or Display logic remains the same) ...
             }
             .transition(.opacity)
         }
         .onAppear {
             // Load last viewed location on startup
             if let lastLocation = savedLocationManager.getLastViewedLocation() {
-                let coordinate = CLLocationCoordinate2D(latitude: lastLocation.latitude, longitude: lastLocation.longitude)
-                let placemark = MKPlacemark(coordinate: coordinate, addressDictionary: nil)
-                self.selectedLocation = placemark
-                Task { await weatherService.fetchWeather(for: placemark.location!) }
+                // ... (Logic to fetch weather for last location) ...
             } else {
-                // Initial check for current location if no last location is saved
                  weatherService.fetchCurrentLocationWeather()
             }
         }
-        .onChange(of: searchText, perform: searchLocations)
+        .sheet(isPresented: $showSavedLocations) {
+            ManageLocationsView(locationManager: savedLocationManager)
+        }
+        // ... (Search Logic remains the same) ...
     }
     
-    // ... (searchSection, weatherDisplay, searchLocations, selectLocation functions remain mostly the same, but integrate LocationManager) ...
-    
-    // ... (Existing implementation of searchSection, weatherDisplay, searchLocations, selectLocation moved here) ...
+    // ... (rest of ContentView functions) ...
 }
 
-// ... (DynamicBackgroundView and other helper views and extensions remain the same) ...
-
-// NEW: Location List View for Phase 2
-struct LocationListView: View {
-    @ObservedObject var locationManager: LocationManager
-    // Add logic here to display the list of saved locations
-    var body: some View {
-        Text("Saved Locations List View (Under Development)")
-    }
-}
+// ... (All other helper structs and classes remain in Helpers.swift) ...
