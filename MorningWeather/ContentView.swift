@@ -1,32 +1,30 @@
 
 import SwiftUI
 import MapKit
-import CoreLocation // Required for CLLocationManagerDelegate in WeatherService
+import CoreLocation
+import UserNotifications // Added for Notification permissions
 
 struct ContentView: View {
     @State private var searchText = ""
     @State private var searchResults: [SearchResult] = []
     
-    @StateObject private var weatherService = WeatherService() // Now uses OpenWeatherMap
+    @StateObject private var weatherService = WeatherService()
     @State private var selectedLocation: MKPlacemark? = nil
 
     var body: some View {
         ZStack {
-            // Dynamic gradient background based on time of day
             if let weather = weatherService.weatherData, weather.isDaytime {
-                LinearGradient(colors: [Color(hex: "87CEEB"), Color(hex: "B0E0E6")], startPoint: .top, endPoint: .bottom) // Day colors
+                LinearGradient(colors: [Color(hex: "87CEEB"), Color(hex: "B0E0E6")], startPoint: .top, endPoint: .bottom)
                     .ignoresSafeArea()
             } else if let weather = weatherService.weatherData, !weather.isDaytime {
-                LinearGradient(colors: [Color(hex: "1A2033"), Color(hex: "3D4A6C")], startPoint: .top, endPoint: .bottom) // Night colors
+                LinearGradient(colors: [Color(hex: "1A2033"), Color(hex: "3D4A6C")], startPoint: .top, endPoint: .bottom)
                     .ignoresSafeArea()
             } else {
-                LinearGradient(colors: [Color(hex: "3d4a6c"), Color(hex: "1a2033")], startPoint: .top, endPoint: .bottom) // Default/Loading colors
+                LinearGradient(colors: [Color(hex: "3d4a6c"), Color(hex: "1a2033")], startPoint: .top, endPoint: .bottom)
                     .ignoresSafeArea()
             }
             
-            // Content VStack (remains largely the same)
             VStack(spacing: 20) {
-                // Logic to display search or weather, or current location loading
                 if selectedLocation == nil && !weatherService.isLoadingLocation && weatherService.errorMessage == nil {
                     searchSection
                 } else {
@@ -35,8 +33,16 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            // Automatically fetch current location weather when the view appears
-            // Only fetch if no location is selected yet
+            // 1. Request Notification Authorization when the app appears
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                if granted {
+                    print("Notification authorization granted.")
+                } else if let error = error {
+                    print("Notification authorization denied: \(error.localizedDescription)")
+                }
+            }
+            
+            // 2. Automatically fetch current location weather when the view appears
             if selectedLocation == nil {
                 weatherService.fetchCurrentLocationWeather()
             }
@@ -48,7 +54,6 @@ struct ContentView: View {
         VStack {
             Spacer()
             Text("Find Your Weather").font(.largeTitle).bold().foregroundColor(.white)
-            // Show an indicator if fetching current location
             if weatherService.isLoadingLocation {
                 ProgressView().tint(.white)
                 Text("Getting your current location...").foregroundColor(.white.opacity(0.8))
@@ -69,22 +74,21 @@ struct ContentView: View {
     
     private var weatherDisplay: some View {
         VStack(spacing: 10) {
-            // Display error or weather data
             if let errorMessage = weatherService.errorMessage {
                 Image(systemName: "exclamationmark.triangle.fill").font(.largeTitle).foregroundColor(.yellow)
                 Text("Error").font(.largeTitle)
                 Text(errorMessage).multilineTextAlignment(.center).padding()
                 Button("Try Again") {
-                    if let location = selectedLocation?.location {
+                    if selectedLocation == nil {
+                        weatherService.fetchCurrentLocationWeather()
+                    } else if let location = selectedLocation?.location {
                         Task { await weatherService.fetchWeather(for: location) }
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 
-            } else if let weather = weatherService.weatherData, let locationName = selectedLocation?.title ?? Optional(weather.name) { // FIX IS HERE
-                // Display OpenWeatherMap data
+            } else if let weather = weatherService.weatherData, let locationName = selectedLocation?.title ?? Optional(weather.name) {
                 Text(locationName).font(.largeTitle).padding(.top)
-                // Use the 'main' condition string for Lottie animation mapping
                 if let condition = weather.weather.first?.main {
                     WeatherAnimationView(openWeatherConditionMain: condition)
                         .frame(height: 200)
@@ -98,7 +102,6 @@ struct ContentView: View {
                 Text("Getting your current location...")
             }
             else {
-                // Default loading for initial fetch or after 'Change Location'
                 ProgressView().tint(.white)
                 Text("Fetching weather...")
             }

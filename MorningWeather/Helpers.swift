@@ -4,6 +4,72 @@ import MapKit
 import Lottie
 import CoreLocation
 import Foundation
+import UserNotifications // Added for notifications
+
+// MARK: - Notification Manager
+class NotificationManager: ObservableObject {
+    // Request notification authorization
+    func requestNotificationAuthorization() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if granted {
+                print("Notification authorization granted.")
+            } else if let error = error {
+                print("Notification authorization denied: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    // Schedule a daily morning weather notification
+    func scheduleDailyWeatherNotification(for location: CLLocation, weatherData: OpenWeatherResponse) {
+        // Check if authorization is granted before scheduling
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized else { return }
+            
+            let content = UNMutableNotificationContent()
+            content.title = "Good Morning! ☀️"
+            
+            // Customize message based on weather and time of day
+            var bodyMessage: String
+            let mainCondition = weatherData.weather.first?.main.lowercased() ?? "clear"
+            let temp = Int(weatherData.main.temp)
+            let locationName = weatherData.name
+            
+            let hour = Calendar.current.component(.hour, from: Date())
+            
+            if hour < 12 { // Morning
+                bodyMessage = "It's \(temp)°C in \(locationName). Expect \(mainCondition). Have a great morning!"
+            } else if hour < 18 { // Afternoon
+                bodyMessage = "Current weather in \(locationName): \(temp)°C and \(mainCondition). Enjoy your afternoon!"
+            } else { // Evening/Night
+                bodyMessage = "\(locationName) is \(temp)°C with \(mainCondition). Wishing you a good night!"
+            }
+            
+            content.body = bodyMessage
+            content.sound = .default
+            
+            // Schedule for tomorrow morning at 8 AM
+            var dateComponents = DateComponents()
+            dateComponents.hour = 8
+            dateComponents.minute = 0
+            let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+            
+            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error = error {
+                    print("Error scheduling notification: \(error.localizedDescription)")
+                } else {
+                    print("Daily weather notification scheduled.")
+                }
+            }
+        }
+    }
+    
+    // Clear pending notifications (e.g., if user changes location)
+    func clearPendingNotifications() {
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        print("All pending notifications cleared.")
+    }
+}
 
 // MARK: - Weather Service (using OpenWeatherMap)
 class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
@@ -25,16 +91,20 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
         // Request location only if authorized. Otherwise, authorization status will change and trigger requestLocation
         if locationManager.authorizationStatus == .authorizedWhenInUse || locationManager.authorizationStatus == .authorizedAlways {
             locationManager.requestLocation()
+        } else if locationManager.authorizationStatus == .notDetermined {
+            // If not determined, request authorization explicitly
+            locationManager.requestWhenInUseAuthorization()
+        } else { // Denied or Restricted
+            self.errorMessage = "Location access denied. Please enable in Settings for current weather."
+            isLoadingLocation = false
         }
-        // If not authorized, locationManagerDidChangeAuthorization will handle it after a status change
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
-            // --- FIXED: Request location immediately once authorized ---
             manager.requestLocation()
-            self.errorMessage = nil // Clear any previous location denial error
+            self.errorMessage = nil
         case .denied, .restricted:
             self.errorMessage = "Location access denied. Please enable in Settings for current weather."
             isLoadingLocation = false
