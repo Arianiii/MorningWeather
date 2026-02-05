@@ -1,6 +1,6 @@
 
 import SwiftUI
-import MapKit // <-- The re-added import for MapKit
+import MapKit
 
 struct ContentView: View {
     @State private var searchText = ""
@@ -71,7 +71,8 @@ struct ContentView: View {
                 Text(locationName).font(.largeTitle).padding(.top)
                 // Use the 'main' condition string for Lottie animation mapping
                 if let condition = weather.weather.first?.main {
-                    WeatherAnimationView(openWeatherConditionMain: condition, isDaytime: weather.isDaytime).frame(height: 200)
+                    WeatherAnimationView(openWeatherConditionMain: condition) // <-- REMOVED isDaytime parameter
+                        .frame(height: 200)
                 }
                 Text("\(Int(weather.main.temp))°C").font(.system(size: 60, weight: .bold))
                 Text(weather.weather.first?.description ?? "").font(.headline)
