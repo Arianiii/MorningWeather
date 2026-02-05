@@ -1,6 +1,6 @@
 
 import SwiftUI
-import MapKit // <-- The re-added import for MapKit
+import MapKit
 
 struct ContentView: View {
     @State private var searchText = ""
@@ -32,6 +32,10 @@ struct ContentView: View {
                 }
             }
         }
+        .onAppear {
+            // 2. Automatically fetch current location weather when the view appears
+            weatherService.fetchCurrentLocationWeather()
+        }
         .onChange(of: searchText, perform: searchLocations)
     }
     
@@ -39,14 +43,20 @@ struct ContentView: View {
         VStack {
             Spacer()
             Text("Find Your Weather").font(.largeTitle).bold().foregroundColor(.white)
-            TextField("Search for a city...", text: $searchText).textFieldStyle(.roundedBorder).padding(.horizontal)
-            if !searchResults.isEmpty {
-                List(searchResults) { result in
-                    Button(action: { selectLocation(result.placemark) }) {
-                        Text(result.placemark.title ?? "Unknown")
+            // Show an indicator if fetching current location
+            if weatherService.isLoadingLocation {
+                ProgressView().tint(.white)
+                Text("Getting your current location...").foregroundColor(.white.opacity(0.8))
+            } else {
+                TextField("Search for a city...", text: $searchText).textFieldStyle(.roundedBorder).padding(.horizontal)
+                if !searchResults.isEmpty {
+                    List(searchResults) { result in
+                        Button(action: { selectLocation(result.placemark) }) {
+                            Text(result.placemark.title ?? "Unknown")
+                        }
                     }
+                    .listStyle(.plain).cornerRadius(10).padding(.horizontal)
                 }
-                .listStyle(.plain).cornerRadius(10).padding(.horizontal)
             }
             Spacer()
         }
@@ -71,14 +81,19 @@ struct ContentView: View {
                 Text(locationName).font(.largeTitle).padding(.top)
                 // Use the 'main' condition string for Lottie animation mapping
                 if let condition = weather.weather.first?.main {
-                    WeatherAnimationView(openWeatherConditionMain: condition) // <-- REMOVED isDaytime parameter
+                    WeatherAnimationView(openWeatherConditionMain: condition)
                         .frame(height: 200)
                 }
                 Text("\(Int(weather.main.temp))°C").font(.system(size: 60, weight: .bold))
                 Text(weather.weather.first?.description ?? "").font(.headline)
                 Text("Feels like: \(Int(weather.main.feels_like))°C").font(.subheadline).opacity(0.8)
                 
-            } else {
+            } else if weatherService.isLoadingLocation {
+                ProgressView().tint(.white)
+                Text("Getting your current location...")
+            }
+            else {
+                // Default loading for initial fetch
                 ProgressView().tint(.white)
                 Text("Fetching weather...")
             }
