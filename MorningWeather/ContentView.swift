@@ -25,8 +25,6 @@ struct ContentView: View {
             }
             
             VStack(spacing: 20) {
-                // --- MODIFIED LOGIC HERE ---
-                // Show search section if no location is selected AND (not loading current location OR an error occurred)
                 if selectedLocation == nil && (!weatherService.isLoadingLocation || weatherService.errorMessage != nil) {
                     searchSection
                 } else {
