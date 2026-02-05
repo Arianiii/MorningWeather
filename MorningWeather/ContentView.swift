@@ -1,87 +1,63 @@
 
 import SwiftUI
+import MapKit
+import CoreLocation
+import UserNotifications
 
-// --- NEW: Alarm Settings View ---
-struct AlarmSettingsView: View {
-    @EnvironmentObject var locationManager: LocationManager
-    @State private var alarmTime = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: Date())!
-    @State private var selectedCondition = "Rain"
-    
-    let conditions = ["Rain", "Snow", "Heavy Wind"]
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("ALARM TIME")) {
-                    DatePicker("Time", selection: $alarmTime, displayedComponents: .hourAndMinute)
-                }
-                
-                Section(header: Text("ALARM CONDITION")) {
-                    Picker("Trigger if:", selection: $selectedCondition) {
-                        ForEach(conditions, id: \.self) { condition in
-                            Text(condition)
-                        }
-                    }
-                    Text("This alarm will notify you if \(selectedCondition) is forecast for tomorrow morning.")
-                        .font(.caption)
-                        .opacity(0.7)
-                }
-                
-                Section(header: Text("CITY")) {
-                    // For demo, just use the first saved location
-                    if let firstLocation = locationManager.savedLocations.first {
-                        Text(firstLocation.name)
-                    } else {
-                        Text("No saved location. Please add one first.")
-                            .foregroundColor(.red)
-                    }
-                }
-                
-                Button("Set Smart Alarm") {
-                    if let location = locationManager.savedLocations.first {
-                        NotificationManager().scheduleWeatherAlarm(
-                            at: alarmTime, 
-                            for: selectedCondition, 
-                            location: location
-                        )
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-            }
-            .navigationTitle("Set Weather Alarm")
-        }
-    }
-}
-
-// MARK: - ContentView (Updated to include a button to AlarmSettingsView)
 struct ContentView: View {
-    // ... (Existing state variables) ...
-    @State private var showAlarmSettings = false // New state for showing alarm settings
+    @State private var searchText = ""
+    @State private var searchResults: [SearchResult] = []
+    
+    @StateObject private var weatherService = WeatherService() // Remains StateObject for local state management
+    @EnvironmentObject private var savedLocationManager: LocationManager // FIX: Use EnvironmentObject
+    @State private var selectedLocation: MKPlacemark? = nil
+    
+    @State private var isAnimating = false
+    @State private var showSavedLocations = false // State for showing the list
 
     var body: some View {
+        // ... (ZStack and other body logic remains the same) ...
+        
+        // --- EXISTING BODY LOGIC ---
         ZStack {
-            // ... (Background and main VStacK logic) ...
-            
+            if let weather = weatherService.weatherData {
+                DynamicBackgroundView(condition: weather.weather.first?.main.lowercased() ?? "clear", isDaytime: weather.isDaytime)
+            } else {
+                LinearGradient(colors: [Color(hex: "3d4a6c"), Color(hex: "1a2033")], startPoint: .top, endPoint: .bottom)
+                    .ignoresSafeArea()
+            }
+
             VStack(spacing: 20) {
-                // ... (Search or Display logic remains the same) ...
+                if selectedLocation == nil && (!weatherService.isLoadingLocation || weatherService.errorMessage != nil) {
+                    searchSection
+                } else {
+                    weatherDisplay
+                }
             }
             .transition(.opacity)
         }
+        // --- END EXISTING BODY LOGIC ---
+
         .onAppear {
-            // ... (OnAppear logic remains the same) ...
+            // Load last viewed location on startup
+            if let lastLocation = savedLocationManager.getLastViewedLocation() {
+                let coordinate = CLLocationCoordinate2D(latitude: lastLocation.latitude, longitude: lastLocation.longitude)
+                let placemark = MKPlacemark(coordinate: coordinate, addressDictionary: nil)
+                self.selectedLocation = placemark
+                Task { await weatherService.fetchWeather(for: placemark.location!) }
+            } else {
+                 weatherService.fetchCurrentLocationWeather()
+            }
         }
-        .sheet(isPresented: $showAlarmSettings) {
-            AlarmSettingsView()
-                .environmentObject(savedLocationManager)
+        .onChange(of: searchText, perform: searchLocations)
+        .sheet(isPresented: $showSavedLocations) {
+            ManageLocationsView() // FIX: No explicit argument passed
+                .environmentObject(savedLocationManager) // Pass manager via environment to the sheet's content
         }
         // ... (All other functions remain the same) ...
     }
     
-    // ... (rest of ContentView functions) ...
+    // ... (rest of ContentView functions, searchSection, weatherDisplay, selectLocation, etc.) ...
 }
 
 // ... (All other helper structs and classes remain in Helpers.swift) ...

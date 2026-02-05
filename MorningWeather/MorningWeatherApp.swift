@@ -6,8 +6,10 @@ import UserNotifications
 
 @main
 struct MorningWeatherApp: App {
-    @StateObject private var weatherService = WeatherService()
-    @AppObject private var locationManager = LocationManager() // Phase 2: LocationManager for global access
+    // FIX: WeatherService is declared as StateObject/ObservedObject because it's the root of data flow
+    @StateObject private var weatherService = WeatherService() 
+    // FIX: LocationManager is declared as StateObject because it manages global app state (Saved Locations)
+    @StateObject private var locationManager = LocationManager()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
 
     @State private var showSplash = true
@@ -19,9 +21,11 @@ struct MorningWeatherApp: App {
                     SplashScreenView()
                 } else if hasCompletedOnboarding {
                     ContentView()
-                        .environmentObject(locationManager) // Pass LocationManager environment
+                        // FIX: Pass LocationManager as EnvironmentObject
+                        .environmentObject(locationManager) 
                 } else {
                     WelcomeView(isCompleted: $hasCompletedOnboarding)
+                         // FIX: Pass LocationManager as EnvironmentObject
                         .environmentObject(locationManager)
                 }
             }
