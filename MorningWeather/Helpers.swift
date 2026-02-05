@@ -3,10 +3,10 @@ import SwiftUI
 import MapKit
 import Lottie
 import CoreLocation
-import Foundation // Added for NSObject
+import Foundation
 
 // MARK: - Weather Service (using OpenWeatherMap)
-class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate { // Inherit from NSObject
+class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var weatherData: OpenWeatherResponse?
     @Published var errorMessage: String?
     @Published var isLoadingLocation = false
@@ -14,7 +14,7 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate { //
     private let apiKey = "dca771ea4f512ddfece257fb57686565"
     private let locationManager = CLLocationManager()
     
-    override init() { // Required override
+    override init() {
         super.init()
         self.locationManager.delegate = self
         locationManager.requestWhenInUseAuthorization()
@@ -22,13 +22,19 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate { //
 
     func fetchCurrentLocationWeather() {
         isLoadingLocation = true
-        locationManager.requestLocation()
+        // Request location only if authorized. Otherwise, authorization status will change and trigger requestLocation
+        if locationManager.authorizationStatus == .authorizedWhenInUse || locationManager.authorizationStatus == .authorizedAlways {
+            locationManager.requestLocation()
+        }
+        // If not authorized, locationManagerDidChangeAuthorization will handle it after a status change
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
+            // --- FIXED: Request location immediately once authorized ---
             manager.requestLocation()
+            self.errorMessage = nil // Clear any previous location denial error
         case .denied, .restricted:
             self.errorMessage = "Location access denied. Please enable in Settings for current weather."
             isLoadingLocation = false
@@ -146,6 +152,7 @@ struct LottieView: UIViewRepresentable {
     func updateUIView(_ uiView: UIView, context: Context) {}
 }
 
+// A view that shows a Lottie animation based on the weather condition
 struct WeatherAnimationView: View {
     let openWeatherConditionMain: String
 
@@ -181,6 +188,7 @@ struct FloatingIcon: View {
             }
     }
 }
+
 
 // MARK: - Extensions (Existing)
 extension Color {
