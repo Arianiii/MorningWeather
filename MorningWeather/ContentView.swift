@@ -25,6 +25,8 @@ struct ContentView: View {
             }
             
             VStack(spacing: 20) {
+                // --- MODIFIED LOGIC HERE ---
+                // Show search section if no location is selected AND (not loading current location OR an error occurred)
                 if selectedLocation == nil && (!weatherService.isLoadingLocation || weatherService.errorMessage != nil) {
                     searchSection
                 } else {
@@ -41,11 +43,7 @@ struct ContentView: View {
                     print("Notification authorization denied: \(error.localizedDescription)")
                 }
             }
-            
-            // 2. Automatically fetch current location weather when the view appears
-            if selectedLocation == nil {
-                weatherService.fetchCurrentLocationWeather()
-            }
+            // 2. Removed automatic current location fetching from here
         }
         .onChange(of: searchText, perform: searchLocations)
     }
@@ -54,7 +52,8 @@ struct ContentView: View {
         VStack {
             Spacer()
             Text("Find Your Weather").font(.largeTitle).bold().foregroundColor(.white)
-            if weatherService.isLoadingLocation {
+            // Only show loading for current location if it's actually attempting to fetch it
+            if weatherService.isLoadingLocation && weatherService.errorMessage == nil {
                 ProgressView().tint(.white)
                 Text("Getting your current location...").foregroundColor(.white.opacity(0.8))
             } else {
@@ -67,6 +66,14 @@ struct ContentView: View {
                     }
                     .listStyle(.plain).cornerRadius(10).padding(.horizontal)
                 }
+                
+                // --- NEW: Current Location Button ---
+                Button(action: { weatherService.fetchCurrentLocationWeather() }) {
+                    Label("Use Current Location", systemImage: "location.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.top, 10)
+                // --- END NEW ---
             }
             Spacer()
         }
@@ -79,9 +86,11 @@ struct ContentView: View {
                 Text("Error").font(.largeTitle)
                 Text(errorMessage).multilineTextAlignment(.center).padding()
                 Button("Try Again") {
+                    // If current location failed, try fetching current location again
                     if selectedLocation == nil {
                         weatherService.fetchCurrentLocationWeather()
                     } else if let location = selectedLocation?.location {
+                        // If a specific location failed, try fetching that again
                         Task { await weatherService.fetchWeather(for: location) }
                     }
                 }
