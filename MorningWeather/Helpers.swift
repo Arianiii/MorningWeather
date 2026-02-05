@@ -175,30 +175,22 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
 }
 
 // MARK: - OpenWeatherMap Data Models
+// FIX 1: Simplify Main struct to include all necessary data and remove MainDetails/CodingKeys
 struct OpenWeatherResponse: Codable {
     let name: String
     let main: Main
     let weather: [Weather]
     let sys: Sys
-    let wind: Wind // Added for detail view
-    let visibility: Int? // Added for detail view
-    let mainDetails: MainDetails // New struct for humidity/pressure
-    
-    enum CodingKeys: String, CodingKey {
-        case name, main, weather, sys, wind, visibility
-        case mainDetails = "main" // Map 'main' twice
-    }
+    let wind: Wind 
+    let visibility: Int? 
 
     struct Main: Codable {
         let temp: Double
         let feels_like: Double
         let temp_min: Double
         let temp_max: Double
-    }
-    
-    struct MainDetails: Codable {
-        let pressure: Int
-        let humidity: Int
+        let pressure: Int // ADDED
+        let humidity: Int // ADDED
     }
 
     struct Weather: Codable {
@@ -322,8 +314,8 @@ struct WeatherCardView: View {
             // Detail Grid (New Design)
             VStack(spacing: 10) {
                 HStack {
-                    DetailItem(icon: "humidity.fill", label: "Humidity", value: "\(weather.mainDetails.humidity)%")
-                    DetailItem(icon: "gauge", label: "Pressure", value: "\(weather.mainDetails.pressure) hPa")
+                    DetailItem(icon: "humidity.fill", label: "Humidity", value: "\(weather.main.humidity)%") // FIX 2: Accessing data correctly
+                    DetailItem(icon: "gauge", label: "Pressure", value: "\(weather.main.pressure) hPa") // FIX 2: Accessing data correctly
                 }
                 HStack {
                     DetailItem(icon: "wind", label: "Wind Speed", value: "\(Int(weather.wind.speed * 3.6)) km/h") // Convert m/s to km/h

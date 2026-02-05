@@ -4,6 +4,56 @@ import MapKit
 import CoreLocation
 import UserNotifications
 
+// --- NEW: Dynamic Background View (Moved here from Helpers) ---
+struct DynamicBackgroundView: View {
+    let condition: String
+    let isDaytime: Bool
+    
+    var body: some View {
+        ZStack {
+            // 1. Base Gradient
+            LinearGradient(colors: getColors(), startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+            
+            // 2. Atmospheric Animation (Rain/Snow)
+            // Using a simple check to determine if the atmospheric animation is needed
+            if condition.contains("rain") || condition.contains("drizzle") {
+                LottieView(name: "Weather-night", loopMode: .loop) // Using night as rain placeholder
+                    .scaleEffect(1.5)
+                    .opacity(0.4)
+                    .ignoresSafeArea()
+            } else if condition.contains("snow") {
+                LottieView(name: "Weather-night", loopMode: .loop) // Using night as snow placeholder
+                    .scaleEffect(1.5)
+                    .opacity(0.4)
+                    .ignoresSafeArea()
+            }
+        }
+    }
+    
+    func getColors() -> [Color] {
+        if !isDaytime {
+            // Night Colors
+            return [Color(hex: "0F2027"), Color(hex: "203A43"), Color(hex: "2C5364")] 
+        }
+        
+        switch condition {
+        case let s where s.contains("rain") || s.contains("drizzle"):
+            return [Color(hex: "3a566b"), Color(hex: "2f4353")] // Rainy Grey/Blue
+        case let s where s.contains("snow"):
+            return [Color(hex: "83a4d4"), Color(hex: "b6fbff")] // Frosty Blue
+        case let s where s.contains("cloud"):
+            return [Color(hex: "5f7893"), Color(hex: "879bb1")] // Cloudy Blue
+        case let s where s.contains("clear") || s.contains("sun"):
+            return [Color(hex: "2980B9"), Color(hex: "6DD5FA")] // Bright Sunny Blue
+        default:
+            return [Color(hex: "87CEEB"), Color(hex: "B0E0E6")] // Default Day
+        }
+    }
+}
+// --- END Dynamic Background View ---
+
+
 struct ContentView: View {
     @State private var searchText = ""
     @State private var searchResults: [SearchResult] = []
@@ -16,13 +66,11 @@ struct ContentView: View {
             if let weather = weatherService.weatherData {
                 DynamicBackgroundView(condition: weather.weather.first?.main.lowercased() ?? "clear", isDaytime: weather.isDaytime)
             } else {
-                // Default background
                 LinearGradient(colors: [Color(hex: "3d4a6c"), Color(hex: "1a2033")], startPoint: .top, endPoint: .bottom)
                     .ignoresSafeArea()
             }
 
             VStack(spacing: 20) {
-                // Show search section if no location is selected AND (not loading current location OR an error occurred)
                 if selectedLocation == nil && (!weatherService.isLoadingLocation || weatherService.errorMessage != nil) {
                     searchSection
                 } else {
@@ -32,7 +80,6 @@ struct ContentView: View {
             .transition(.opacity) // Smooth transition between search and display
         }
         .onAppear {
-            // Notification Authorization is still requested here
             UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
                 if granted {
                     print("Notification authorization granted.")
@@ -50,9 +97,8 @@ struct ContentView: View {
             Text("Find Your Weather").font(.largeTitle).bold().foregroundColor(.white)
                 .shadow(radius: 5)
             
-            // Current Location Status/Button
             if weatherService.isLoadingLocation && weatherService.errorMessage == nil {
-                ProgressView().tint(.white)
+                ProgressView().tint(.white).scaleEffect(1.5)
                 Text("Getting your current location...").foregroundColor(.white.opacity(0.8))
             } else {
                 HStack {
