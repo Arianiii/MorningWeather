@@ -4,7 +4,7 @@ import MapKit
 import Lottie
 import CoreLocation
 import Foundation
-import UserNotifications // Added for notifications
+import UserNotifications
 
 // MARK: - Notification Manager
 class NotificationManager: ObservableObject {
