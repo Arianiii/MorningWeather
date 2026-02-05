@@ -6,14 +6,18 @@ import UserNotifications
 
 @main
 struct MorningWeatherApp: App {
-    // We will initialize WeatherService here to make sure it's ready for location requests
     @StateObject private var weatherService = WeatherService()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
+
+    // State to control showing the splash screen
+    @State private var showSplash = true
 
     var body: some Scene {
         WindowGroup {
             Group {
-                if hasCompletedOnboarding {
+                if showSplash {
+                    SplashScreenView() // Our new splash screen
+                } else if hasCompletedOnboarding {
                     ContentView()
                 } else {
                     WelcomeView(isCompleted: $hasCompletedOnboarding)
@@ -22,7 +26,7 @@ struct MorningWeatherApp: App {
             .onAppear {
                 // --- MOVED LOCATION AND NOTIFICATION REQUESTS HERE ---
                 // 1. Request Location Authorization immediately on app launch
-                weatherService.requestLocationAuthorization() // Call the new public function
+                weatherService.requestLocationAuthorization()
                 // 2. Request Notification Authorization immediately on app launch
                 UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
                     if granted {
@@ -32,6 +36,11 @@ struct MorningWeatherApp: App {
                     }
                 }
                 // --- END MOVED REQUESTS ---
+                
+                // Dismiss splash screen after a delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { // 2 second splash screen
+                    withAnimation { showSplash = false }
+                }
             }
         }
     }

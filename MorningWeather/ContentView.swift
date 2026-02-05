@@ -35,7 +35,7 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            // 1. Request Notification Authorization when the app appears
+            // Notification Authorization is still requested here
             UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
                 if granted {
                     print("Notification authorization granted.")
@@ -43,7 +43,7 @@ struct ContentView: View {
                     print("Notification authorization denied: \(error.localizedDescription)")
                 }
             }
-            // 2. Removed automatic current location fetching from here
+            // Automatic current location fetching is removed from here
         }
         .onChange(of: searchText, perform: searchLocations)
     }
@@ -86,11 +86,9 @@ struct ContentView: View {
                 Text("Error").font(.largeTitle)
                 Text(errorMessage).multilineTextAlignment(.center).padding()
                 Button("Try Again") {
-                    // If current location failed, try fetching current location again
                     if selectedLocation == nil {
                         weatherService.fetchCurrentLocationWeather()
                     } else if let location = selectedLocation?.location {
-                        // If a specific location failed, try fetching that again
                         Task { await weatherService.fetchWeather(for: location) }
                     }
                 }

@@ -40,7 +40,10 @@ class NotificationManager: ObservableObject {
                 bodyMessage = "It's \(temp)°C in \(locationName). Expect \(mainCondition). Have a great morning!"
             } else if hour < 18 { // Afternoon
                 bodyMessage = "Current weather in \(locationName): \(temp)°C and \(mainCondition). Enjoy your afternoon!"
-            } else { // Evening/Night
+            }
+            else if hour < 20 { // Evening
+                bodyMessage = "Current weather in \(locationName): \(temp)°C and \(mainCondition). Enjoy your evening!"
+            } else { // Night
                 bodyMessage = "\(locationName) is \(temp)°C with \(mainCondition). Wishing you a good night!"
             }
             
@@ -82,108 +85,90 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     override init() {
         super.init()
-        // Removed print("WeatherService initialized.") // DEBUG
         self.locationManager.delegate = self
     }
 
     // NEW PUBLIC FUNCTION TO REQUEST AUTHORIZATION
     func requestLocationAuthorization() {
-        // Removed print("Requesting location authorization...") // DEBUG
         locationManager.requestWhenInUseAuthorization()
     }
 
     func fetchCurrentLocationWeather() {
-        // Removed print("Attempting to fetch current location weather...") // DEBUG
         isLoadingLocation = true
         self.errorMessage = nil // Clear previous errors
         
         switch locationManager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
-            // Removed print("Location already authorized. Requesting location...") // DEBUG
             locationManager.requestLocation()
         case .notDetermined:
             // If not determined, request authorization explicitly (will trigger didChangeAuthorization)
             requestLocationAuthorization()
         case .denied, .restricted:
-            // Removed print("Location access denied or restricted. Showing error.") // DEBUG
             self.errorMessage = "Location access denied. Please enable in Settings for current weather."
             isLoadingLocation = false
         @unknown default:
-            // Removed print("Unknown location authorization status.") // DEBUG
             self.errorMessage = "Unknown location authorization status."
             isLoadingLocation = false
         }
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        // Removed print("Location authorization status changed to: \(manager.authorizationStatus.rawValue)") // DEBUG
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
-            // Removed print("Authorized. Requesting location...") // DEBUG
             manager.requestLocation()
             self.errorMessage = nil
         case .denied, .restricted:
-            // Removed print("Denied/Restricted. Setting error.") // DEBUG
             self.errorMessage = "Location access denied. Please enable in Settings for current weather."
             isLoadingLocation = false
         case .notDetermined:
-            // Removed print("Not determined. Requesting again (if needed).") // DEBUG
             manager.requestWhenInUseAuthorization()
         @unknown default:
-            // Removed print("Unknown status. Setting error.") // DEBUG
             self.errorMessage = "Unknown location authorization status."
             isLoadingLocation = false
         }
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        // Removed print("Did update locations called.") // DEBUG
         isLoadingLocation = false // Ensure loading state is reset here
         guard let location = locations.first else {
-            // Removed print("No location received.") // DEBUG
             self.errorMessage = "Could not determine current location."
             return
         }
-        // Removed print("Location received: \(location)") // DEBUG
         Task { await fetchWeather(for: location) }
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        // Removed print("Location Manager Error: \(error.localizedDescription)") // DEBUG
         isLoadingLocation = false // Ensure loading state is reset here
+        print("Location Manager Error: \(error.localizedDescription)")
         self.errorMessage = "Failed to get current location: \(error.localizedDescription)"
     }
 
     func fetchWeather(for location: CLLocation) async {
-        // Removed print("Starting weather fetch for location: lat \(location.coordinate.latitude), lon \(location.coordinate.longitude)") // DEBUG
         self.weatherData = nil
         self.errorMessage = nil
         
         let urlString = "https://api.openweathermap.org/data/2.5/weather?lat=\(location.coordinate.latitude)&lon=\(location.coordinate.longitude)&appid=\(apiKey)&units=metric"
         
         guard let url = URL(string: urlString) else {
-            // Removed print("Invalid API URL.") // DEBUG
             self.errorMessage = "Invalid API URL."
             return
         }
         
         do {
-            // Removed print("Fetching data from OpenWeatherMap...") // DEBUG
             let (data, response) = try await URLSession.shared.data(from: url)
             
             guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
                 let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-                // Removed print("OpenWeatherMap Error: HTTP Status \(status)") // DEBUG
+                print("OpenWeatherMap Error: HTTP Status \(status)")
                 self.errorMessage = "Failed to fetch weather. Check API key or network connection. Status: \(status)"
                 return
             }
             
             let decodedResponse = try JSONDecoder().decode(OpenWeatherResponse.self, from: data)
             self.weatherData = decodedResponse
-            // Removed print("Weather data fetched and decoded successfully for \(decodedResponse.name).") // DEBUG
             
         } catch {
-            // Removed print("OpenWeatherMap Decoding/Network Error: \(error.localizedDescription)") // DEBUG
+            print("OpenWeatherMap Decoding/Network Error: \(error.localizedDescription)")
             self.errorMessage = "Failed to decode weather data or network error. Details: \(error.localizedDescription)"
         }
     }
@@ -286,6 +271,40 @@ struct FloatingIcon: View {
     }
 }
 
+// --- NEW: Custom Splash Screen View ---
+struct SplashScreenView: View {
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(hex: "4a7b9d"), Color(hex: "2a4d69")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            
+            // Floating icons for visual appeal during splash
+            GeometryReader { geo in
+                FloatingIcon(iconName: "sun.max.fill", size: 80, duration: 25, startX: geo.size.width * 0.1, startY: geo.size.height * 0.2, endX: geo.size.width * 0.2, endY: geo.size.height * 0.15)
+                FloatingIcon(iconName: "cloud.fill", size: 60, duration: 30, startX: geo.size.width * 0.8, startY: geo.size.height * 0.3, endX: geo.size.width * 0.7, endY: geo.size.height * 0.35)
+                FloatingIcon(iconName: "cloud.drizzle.fill", size: 40, duration: 20, startX: geo.size.width * 0.2, startY: geo.size.height * 0.8, endX: geo.size.width * 0.3, endY: geo.size.height * 0.85)
+            }
+            
+            VStack {
+                Spacer()
+                Image(systemName: "cloud.sun.fill") // A central icon for the splash screen
+                    .font(.system(size: 150))
+                    .foregroundColor(.white)
+                    .padding(.bottom, 20)
+                Text("MorningWeather")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                Spacer()
+            }
+        }
+    }
+}
+
 
 // MARK: - Extensions (Existing)
 extension Color {
@@ -302,9 +321,9 @@ extension MKPlacemark {
     var title: String? {
         let name = self.name ?? ""
         let locality = self.locality ?? ""
-        let country = self.countryCode ?? ""
-        if !name.isEmpty { return "\(name), \(country)" }
-        if !locality.isEmpty { return "\(locality), \(country)" }
-        return country
+        let letCountry = self.countryCode ?? ""
+        if !name.isEmpty { return "\(name), \(letCountry)" }
+        if !locality.isEmpty { return "\(locality), \(letCountry)" }
+        return letCountry
     }
 }
