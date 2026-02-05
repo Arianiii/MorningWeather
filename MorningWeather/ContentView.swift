@@ -13,17 +13,15 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            if let weather = weatherService.weatherData, weather.isDaytime {
-                LinearGradient(colors: [Color(hex: "87CEEB"), Color(hex: "B0E0E6")], startPoint: .top, endPoint: .bottom)
-                    .ignoresSafeArea()
-            } else if let weather = weatherService.weatherData, !weather.isDaytime {
-                LinearGradient(colors: [Color(hex: "1A2033"), Color(hex: "3D4A6C")], startPoint: .top, endPoint: .bottom)
-                    .ignoresSafeArea()
+            // New: Dynamic Background based on Weather
+            if let weather = weatherService.weatherData {
+                DynamicBackgroundView(condition: weather.weather.first?.main.lowercased() ?? "clear", isDaytime: weather.isDaytime)
             } else {
+                // Default background
                 LinearGradient(colors: [Color(hex: "3d4a6c"), Color(hex: "1a2033")], startPoint: .top, endPoint: .bottom)
                     .ignoresSafeArea()
             }
-            
+
             VStack(spacing: 20) {
                 // Show search section if no location is selected AND (not loading current location OR an error occurred)
                 if selectedLocation == nil && (!weatherService.isLoadingLocation || weatherService.errorMessage != nil) {
@@ -32,9 +30,9 @@ struct ContentView: View {
                     weatherDisplay
                 }
             }
+            .transition(.opacity) // Smooth transition between search and display
         }
         .onAppear {
-            // Notification Authorization is still requested here
             UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
                 if granted {
                     print("Notification authorization granted.")
@@ -50,64 +48,110 @@ struct ContentView: View {
         VStack {
             Spacer()
             Text("Find Your Weather").font(.largeTitle).bold().foregroundColor(.white)
+                .shadow(radius: 5)
+            
+            // Current Location Status/Button
             if weatherService.isLoadingLocation && weatherService.errorMessage == nil {
                 ProgressView().tint(.white)
                 Text("Getting your current location...").foregroundColor(.white.opacity(0.8))
             } else {
-                TextField("Search for a city...", text: $searchText).textFieldStyle(.roundedBorder).padding(.horizontal)
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.white.opacity(0.6))
+                    TextField("Search for a city...", text: $searchText)
+                        .foregroundColor(.white)
+                        .accentColor(.white)
+                }
+                .padding()
+                .background(.ultraThinMaterial) // Glassy Search Bar
+                .cornerRadius(15)
+                .padding(.horizontal)
+                
                 if !searchResults.isEmpty {
                     List(searchResults) { result in
                         Button(action: { selectLocation(result.placemark) }) {
-                            Text(result.placemark.title ?? "Unknown")
+                            Text(result.placemark.title ?? "Unknown").foregroundColor(.primary)
                         }
                     }
-                    .listStyle(.plain).cornerRadius(10).padding(.horizontal)
+                    .listStyle(.plain)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(10)
+                    .padding(.horizontal)
+                    .frame(maxHeight: 300)
                 }
                 
-                Button(action: { weatherService.fetchCurrentLocationWeather() }) {
-                    Label("Use Current Location", systemImage: "location.fill")
+                Button(action: { 
+                    withAnimation { weatherService.fetchCurrentLocationWeather() } 
+                }) {
+                    HStack {
+                        Image(systemName: "location.fill")
+                        Text("Use Current Location")
+                    }
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.white.opacity(0.2))
+                    .foregroundColor(.white)
+                    .cornerRadius(15)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 15).stroke(Color.white.opacity(0.5), lineWidth: 1)
+                    )
                 }
-                .buttonStyle(.borderedProminent)
                 .padding(.top, 10)
+                .padding(.horizontal)
             }
             Spacer()
         }
     }
     
     private var weatherDisplay: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 20) {
             if let errorMessage = weatherService.errorMessage {
-                Image(systemName: "exclamationmark.triangle.fill").font(.largeTitle).foregroundColor(.yellow)
-                Text("Error").font(.largeTitle)
-                Text(errorMessage).multilineTextAlignment(.center).padding()
-                Button("Try Again") {
-                    if selectedLocation == nil {
-                        weatherService.fetchCurrentLocationWeather()
-                    } else if let location = selectedLocation?.location {
-                        Task { await weatherService.fetchWeather(for: location) }
+                VStack(spacing: 15) {
+                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 50)).foregroundColor(.yellow)
+                    Text("Error").font(.largeTitle).fontWeight(.bold)
+                    Text(errorMessage).multilineTextAlignment(.center).padding(.horizontal)
+                    Button("Try Again") {
+                        if selectedLocation == nil {
+                            weatherService.fetchCurrentLocationWeather()
+                        } else if let location = selectedLocation?.location {
+                            Task { await weatherService.fetchWeather(for: location) }
+                        }
                     }
+                    .padding().background(.white.opacity(0.2)).cornerRadius(10)
                 }
-                .buttonStyle(.borderedProminent)
+                .foregroundColor(.white).padding().background(.ultraThinMaterial).cornerRadius(20).padding()
                 
             } else if let weather = weatherService.weatherData, let locationName = selectedLocation?.title ?? Optional(weather.name) {
+                // Use the new WeatherCardView here
                 WeatherCardView(weather: weather, locationName: locationName)
+                    .transition(.scale.combined(with: .opacity))
                 
             } else if weatherService.isLoadingLocation {
-                ProgressView().tint(.white)
-                Text("Getting your current location...")
+                ProgressView().tint(.white).scaleEffect(1.5)
+                Text("Getting your current location...").foregroundColor(.white).padding(.top, 10)
             }
             else {
-                ProgressView().tint(.white)
-                Text("Fetching weather...")
+                ProgressView().tint(.white).scaleEffect(1.5)
+                Text("Fetching weather...").foregroundColor(.white).padding(.top, 10)
             }
             
             Spacer()
-            Button("Change Location") {
-                withAnimation { selectedLocation = nil; searchText = ""; weatherService.errorMessage = nil; weatherService.weatherData = nil }
+            
+            if weatherService.weatherData != nil {
+                Button(action: {
+                    withAnimation {
+                        selectedLocation = nil
+                        searchText = ""
+                        weatherService.errorMessage = nil
+                        weatherService.weatherData = nil
+                    }
+                }) {
+                    Image(systemName: "magnifyingglass.circle.fill").font(.system(size: 50)).foregroundColor(.white.opacity(0.8)).background(Color.black.opacity(0.2)).clipShape(Circle())
+                }
+                .padding(.bottom, 30)
             }
-            .padding()
         }
-        .foregroundColor(.white)
     }
     
     private func searchLocations(query: String) {

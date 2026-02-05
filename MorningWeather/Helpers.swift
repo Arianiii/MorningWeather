@@ -180,6 +180,14 @@ struct OpenWeatherResponse: Codable {
     let main: Main
     let weather: [Weather]
     let sys: Sys
+    let wind: Wind // Added for detail view
+    let visibility: Int? // Added for detail view
+    let mainDetails: MainDetails // New struct for humidity/pressure
+    
+    enum CodingKeys: String, CodingKey {
+        case name, main, weather, sys, wind, visibility
+        case mainDetails = "main" // Map 'main' twice
+    }
 
     struct Main: Codable {
         let temp: Double
@@ -187,12 +195,21 @@ struct OpenWeatherResponse: Codable {
         let temp_min: Double
         let temp_max: Double
     }
+    
+    struct MainDetails: Codable {
+        let pressure: Int
+        let humidity: Int
+    }
 
     struct Weather: Codable {
         let id: Int
         let main: String
         let description: String
         let icon: String
+    }
+    
+    struct Wind: Codable {
+        let speed: Double
     }
     
     struct Sys: Codable {
@@ -271,7 +288,7 @@ struct FloatingIcon: View {
     }
 }
 
-// --- NEW: Weather Card View ---
+// --- NEW: Weather Card View with Detail Grid ---
 struct WeatherCardView: View {
     let weather: OpenWeatherResponse
     let locationName: String
@@ -279,9 +296,9 @@ struct WeatherCardView: View {
     var body: some View {
         VStack(spacing: 15) {
             Text(locationName)
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .padding(.top)
+                .font(.system(size: 32, weight: .bold))
+                .foregroundColor(.white)
+                .shadow(radius: 5)
             
             // Weather Animation
             if let condition = weather.weather.first?.main {
@@ -289,22 +306,61 @@ struct WeatherCardView: View {
                     .frame(height: 180)
             }
             
-            Text("\(Int(weather.main.temp))°C")
-                .font(.system(size: 80, weight: .bold))
+            // Current Temperature
+            Text("\(Int(weather.main.temp))°")
+                .font(.system(size: 90, weight: .thin))
+                .foregroundColor(.white)
+                .shadow(radius: 5)
             
-            Text(weather.weather.first?.description ?? "")
-                .font(.headline)
-            
-            Text("Feels like: \(Int(weather.main.feels_like))°C")
-                .font(.subheadline)
-                .opacity(0.8)
+            // Description
+            Text(weather.weather.first?.description.capitalized ?? "")
+                .font(.title2)
+                .fontWeight(.medium)
+                .foregroundColor(.white.opacity(0.9))
+                .padding(.bottom, 20)
+
+            // Detail Grid (New Design)
+            VStack(spacing: 10) {
+                HStack {
+                    DetailItem(icon: "humidity.fill", label: "Humidity", value: "\(weather.mainDetails.humidity)%")
+                    DetailItem(icon: "gauge", label: "Pressure", value: "\(weather.mainDetails.pressure) hPa")
+                }
+                HStack {
+                    DetailItem(icon: "wind", label: "Wind Speed", value: "\(Int(weather.wind.speed * 3.6)) km/h") // Convert m/s to km/h
+                    DetailItem(icon: "eye.fill", label: "Visibility", value: "\(weather.visibility.map { "\($0 / 1000) km" } ?? "N/A")")
+                }
+            }
+            .padding(10)
+            .background(.ultraThinMaterial) // The glassy effect for the details
+            .cornerRadius(15)
         }
-        .foregroundColor(.white)
-        .padding(20)
-        .background(.ultraThinMaterial) // The glassy effect
-        .cornerRadius(25)
-        .shadow(radius: 15)
+        .padding(25)
+        .background(.ultraThinMaterial)
+        .cornerRadius(30)
+        .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
         .padding(.horizontal)
+    }
+}
+
+// Helper for the detail grid
+struct DetailItem: View {
+    let icon: String
+    let label: String
+    let value: String
+    
+    var body: some View {
+        VStack {
+            Image(systemName: icon)
+                .font(.title3)
+            Text(label)
+                .font(.caption)
+                .opacity(0.8)
+            Text(value)
+                .font(.headline)
+                .fontWeight(.semibold)
+        }
+        .frame(maxWidth: .infinity)
+        .foregroundColor(.white)
     }
 }
 
