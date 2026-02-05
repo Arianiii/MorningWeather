@@ -78,7 +78,7 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var isLoadingLocation = false
 
     private let apiKey = "dca771ea4f512ddfece257fb57686565"
-    private let locationManager = CLLocationManager()
+    let locationManager = CLLocationManager() // Made internal to be accessible from MorningWeatherApp
     
     override init() {
         super.init()
@@ -86,6 +86,7 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.locationManager.delegate = self
     }
 
+    // NEW PUBLIC FUNCTION TO REQUEST AUTHORIZATION
     func requestLocationAuthorization() {
         print("Requesting location authorization...") // DEBUG
         locationManager.requestWhenInUseAuthorization()
