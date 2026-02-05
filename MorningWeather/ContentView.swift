@@ -1,13 +1,14 @@
 
 import SwiftUI
 import MapKit
+import CoreLocation // 1. Import CoreLocation for CLLocationManagerDelegate
 
 struct ContentView: View {
     @State private var searchText = ""
     @State private var searchResults: [SearchResult] = []
     
     @StateObject private var weatherService = WeatherService() // Now uses OpenWeatherMap
-    @State private var selectedLocation: MKPlacemark?
+    @State private var selectedLocation: MKPlacemark? = nil // Make it optional initially
 
     var body: some View {
         ZStack {
@@ -25,7 +26,8 @@ struct ContentView: View {
             
             // Content VStack (remains largely the same)
             VStack(spacing: 20) {
-                if selectedLocation == nil {
+                // Logic to display search or weather, or current location loading
+                if selectedLocation == nil && !weatherService.isLoadingLocation && weatherService.errorMessage == nil {
                     searchSection
                 } else {
                     weatherDisplay
@@ -34,7 +36,10 @@ struct ContentView: View {
         }
         .onAppear {
             // 2. Automatically fetch current location weather when the view appears
-            weatherService.fetchCurrentLocationWeather()
+            // Only fetch if no location is selected yet
+            if selectedLocation == nil {
+                weatherService.fetchCurrentLocationWeather()
+            }
         }
         .onChange(of: searchText, perform: searchLocations)
     }
@@ -43,20 +48,14 @@ struct ContentView: View {
         VStack {
             Spacer()
             Text("Find Your Weather").font(.largeTitle).bold().foregroundColor(.white)
-            // Show an indicator if fetching current location
-            if weatherService.isLoadingLocation {
-                ProgressView().tint(.white)
-                Text("Getting your current location...").foregroundColor(.white.opacity(0.8))
-            } else {
-                TextField("Search for a city...", text: $searchText).textFieldStyle(.roundedBorder).padding(.horizontal)
-                if !searchResults.isEmpty {
-                    List(searchResults) { result in
-                        Button(action: { selectLocation(result.placemark) }) {
-                            Text(result.placemark.title ?? "Unknown")
-                        }
+            TextField("Search for a city...", text: $searchText).textFieldStyle(.roundedBorder).padding(.horizontal)
+            if !searchResults.isEmpty {
+                List(searchResults) { result in
+                    Button(action: { selectLocation(result.placemark) }) {
+                        Text(result.placemark.title ?? "Unknown")
                     }
-                    .listStyle(.plain).cornerRadius(10).padding(.horizontal)
                 }
+                .listStyle(.plain).cornerRadius(10).padding(.horizontal)
             }
             Spacer()
         }
@@ -64,19 +63,23 @@ struct ContentView: View {
     
     private var weatherDisplay: some View {
         VStack(spacing: 10) {
-            // Display error or weather data
+            // Display error or weather data, or loading
             if let errorMessage = weatherService.errorMessage {
                 Image(systemName: "exclamationmark.triangle.fill").font(.largeTitle).foregroundColor(.yellow)
                 Text("Error").font(.largeTitle)
                 Text(errorMessage).multilineTextAlignment(.center).padding()
                 Button("Try Again") {
-                    if let location = selectedLocation?.location {
+                    // If current location failed, try fetching current location again
+                    if selectedLocation == nil {
+                        weatherService.fetchCurrentLocationWeather()
+                    } else if let location = selectedLocation?.location {
+                        // If a specific location failed, try fetching that again
                         Task { await weatherService.fetchWeather(for: location) }
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 
-            } else if let weather = weatherService.weatherData, let locationName = selectedLocation?.title {
+            } else if let weather = weatherService.weatherData, let locationName = selectedLocation?.title ?? weather.name {
                 // Display OpenWeatherMap data
                 Text(locationName).font(.largeTitle).padding(.top)
                 // Use the 'main' condition string for Lottie animation mapping
@@ -93,13 +96,17 @@ struct ContentView: View {
                 Text("Getting your current location...")
             }
             else {
-                // Default loading for initial fetch
+                // Default loading for initial fetch or after 'Change Location'
                 ProgressView().tint(.white)
                 Text("Fetching weather...")
             }
             
             Spacer()
-            Button("Change Location") { withAnimation { selectedLocation = nil; searchText = "" } }.padding()
+            // The 'Change Location' button should also reset current location fetching state
+            Button("Change Location") {
+                withAnimation { selectedLocation = nil; searchText = ""; weatherService.errorMessage = nil; weatherService.weatherData = nil }
+            }
+            .padding()
         }
         .foregroundColor(.white)
     }
