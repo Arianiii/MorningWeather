@@ -36,6 +36,7 @@ struct ContentView: View {
         }
         .onAppear {
             // Automatically fetch current location weather when the view appears
+            // Only fetch if no location is selected yet
             if selectedLocation == nil {
                 weatherService.fetchCurrentLocationWeather()
             }
@@ -80,7 +81,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 
-            } else if let weather = weatherService.weatherData, let locationName = selectedLocation?.title ?? weather.name {
+            } else if let weather = weatherService.weatherData, let locationName = selectedLocation?.title ?? Optional(weather.name) { // FIX IS HERE
                 // Display OpenWeatherMap data
                 Text(locationName).font(.largeTitle).padding(.top)
                 // Use the 'main' condition string for Lottie animation mapping
