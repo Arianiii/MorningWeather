@@ -307,7 +307,7 @@ struct WeatherCardView: View {
             }
             
             // Current Temperature
-            Text("\(Int(weather.main.temp))°")
+            Text("\(Int(weather.main.temp))°C")
                 .font(.system(size: 90, weight: .thin))
                 .foregroundColor(.white)
                 .shadow(radius: 5)

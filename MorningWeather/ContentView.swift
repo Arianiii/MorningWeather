@@ -13,7 +13,6 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            // New: Dynamic Background based on Weather
             if let weather = weatherService.weatherData {
                 DynamicBackgroundView(condition: weather.weather.first?.main.lowercased() ?? "clear", isDaytime: weather.isDaytime)
             } else {
@@ -33,6 +32,7 @@ struct ContentView: View {
             .transition(.opacity) // Smooth transition between search and display
         }
         .onAppear {
+            // Notification Authorization is still requested here
             UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
                 if granted {
                     print("Notification authorization granted.")
