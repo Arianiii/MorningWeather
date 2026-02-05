@@ -90,7 +90,6 @@ struct ContentView: View {
                 .buttonStyle(.borderedProminent)
                 
             } else if let weather = weatherService.weatherData, let locationName = selectedLocation?.title ?? Optional(weather.name) {
-                // Use the new WeatherCardView here
                 WeatherCardView(weather: weather, locationName: locationName)
                 
             } else if weatherService.isLoadingLocation {
