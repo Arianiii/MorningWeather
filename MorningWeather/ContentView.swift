@@ -1,6 +1,6 @@
 
 import SwiftUI
-import MapKit // <-- The re-re-added import for MapKit
+import MapKit
 import CoreLocation
 import UserNotifications
 
@@ -25,7 +25,9 @@ struct ContentView: View {
             }
             
             VStack(spacing: 20) {
-                if selectedLocation == nil && !weatherService.isLoadingLocation && weatherService.errorMessage == nil {
+                // --- MODIFIED LOGIC HERE ---
+                // Show search section if no location is selected AND (not loading current location OR an error occurred)
+                if selectedLocation == nil && (!weatherService.isLoadingLocation || weatherService.errorMessage != nil) {
                     searchSection
                 } else {
                     weatherDisplay
