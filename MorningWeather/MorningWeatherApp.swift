@@ -7,6 +7,7 @@ import UserNotifications
 @main
 struct MorningWeatherApp: App {
     @StateObject private var weatherService = WeatherService()
+    @AppObject private var locationManager = LocationManager() // Phase 2: LocationManager for global access
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
 
     @State private var showSplash = true
@@ -15,21 +16,19 @@ struct MorningWeatherApp: App {
         WindowGroup {
             Group {
                 if showSplash {
-                    SplashScreenView() // Our new splash screen
+                    SplashScreenView()
                 } else if hasCompletedOnboarding {
                     ContentView()
+                        .environmentObject(locationManager) // Pass LocationManager environment
                 } else {
                     WelcomeView(isCompleted: $hasCompletedOnboarding)
+                        .environmentObject(locationManager)
                 }
             }
             .onAppear {
                 weatherService.requestLocationAuthorization()
                 UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-                    if granted {
-                        print("Notification authorization granted.")
-                    } else if let error = error {
-                        print("Notification authorization denied: \(error.localizedDescription)")
-                    }
+                    if granted { print("Notification authorization granted.") }
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) { 
                     withAnimation { showSplash = false }
