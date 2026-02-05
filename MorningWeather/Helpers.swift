@@ -4,7 +4,7 @@ import MapKit
 import Lottie
 import CoreLocation
 import Foundation
-import UserNotifications // Added for notifications
+import UserNotifications
 
 // MARK: - Notification Manager
 class NotificationManager: ObservableObject {
@@ -76,78 +76,11 @@ class NotificationManager: ObservableObject {
     }
 }
 
-// MARK: - Location Management
-struct SavedLocation: Identifiable, Codable {
-    let id = UUID()
-    let name: String
-    let latitude: Double
-    let longitude: Double
-}
-
-class LocationManager: ObservableObject {
-    @Published var savedLocations: [SavedLocation] = []
-    
-    private let userDefaultsKey = "savedWeatherLocations"
-    
-    init() {
-        if let data = UserDefaults.standard.data(forKey: userDefaultsKey) {
-            if let decoded = try? JSONDecoder().decode([SavedLocation].self, from: data) {
-                savedLocations = decoded
-                return
-            }
-        }
-        savedLocations = []
-    }
-    
-    func save() {
-        if let encoded = try? JSONEncoder().encode(savedLocations) {
-            UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-        }
-    }
-    
-    func addLocation(name: String, coordinate: CLLocationCoordinate2D) {
-        let newLocation = SavedLocation(
-            name: name,
-            latitude: coordinate.latitude,
-            longitude: coordinate.longitude
-        )
-        // Ensure we don't add duplicates
-        if !savedLocations.contains(where: { $0.name == name }) {
-            savedLocations.append(newLocation)
-            save()
-        }
-    }
-    
-    func removeLocation(at offsets: IndexSet) {
-        savedLocations.remove(atOffsets: offsets)
-        save()
-    }
-    
-    // Get/Set the last viewed location for app startup
-    private let lastLocationKey = "lastViewedLocation"
-    
-    func setLastViewedLocation(name: String, coordinate: CLLocationCoordinate2D) {
-        let lastLocation = SavedLocation(name: name, latitude: coordinate.latitude, longitude: coordinate.longitude)
-        if let encoded = try? JSONEncoder().encode(lastLocation) {
-            UserDefaults.standard.set(encoded, forKey: lastLocationKey)
-        }
-    }
-    
-    func getLastViewedLocation() -> SavedLocation? {
-        if let data = UserDefaults.standard.data(forKey: lastLocationKey) {
-            return try? JSONDecoder().decode(SavedLocation.self, from: data)
-        }
-        return nil
-    }
-}
-
-
 // MARK: - Weather Service (using OpenWeatherMap)
 class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var weatherData: OpenWeatherResponse?
     @Published var errorMessage: String?
     @Published var isLoadingLocation = false
-    @Published var currentCityName: String? // To hold the name of the fetched location
 
     private let apiKey = "dca771ea4f512ddfece257fb57686565"
     let locationManager = CLLocationManager() // Made internal to be accessible from MorningWeatherApp
@@ -212,65 +145,43 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.errorMessage = "Failed to get current location: \(error.localizedDescription)"
     }
 
-    // UPDATED: Fetches BOTH current weather and 5-day forecast
     func fetchWeather(for location: CLLocation) async {
         self.weatherData = nil
-        self.forecastData = nil
         self.errorMessage = nil
         
-        let lat = location.coordinate.latitude
-        let lon = location.coordinate.longitude
+        let urlString = "https://api.openweathermap.org/data/2.5/weather?lat=\(location.coordinate.latitude)&lon=\(location.coordinate.longitude)&appid=\(apiKey)&units=metric"
         
-        let currentUrlString = "https://api.openweathermap.org/data/2.5/weather?lat=\(lat)&lon=\(lon)&appid=\(apiKey)&units=metric"
-        let forecastUrlString = "https://api.openweathermap.org/data/2.5/forecast?lat=\(lat)&lon=\(lon)&appid=\(apiKey)&units=metric"
-
-        // 1. Fetch Current Weather
-        do {
-            guard let url = URL(string: currentUrlString) else { throw URLError(.badURL) }
-            let (data, response) = try await URLSession.shared.data(from: url)
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
-            
-            let decodedResponse = try JSONDecoder().decode(CurrentWeatherResponse.self, from: data)
-            self.weatherData = decodedResponse
-            NotificationManager().scheduleDailyWeatherNotification(for: location, weatherData: decodedResponse)
-            
-            // Set current city name (from weather data, as placemark is nil for current location)
-            self.currentCityName = decodedResponse.name
-            
-            // Set last viewed location
-            LocationManager().setLastViewedLocation(name: decodedResponse.name, coordinate: location.coordinate)
-
-        } catch {
-            self.errorMessage = "Failed to fetch current weather. Details: \(error.localizedDescription)"
+        guard let url = URL(string: urlString) else {
+            self.errorMessage = "Invalid API URL."
             return
         }
         
-        // 2. Fetch Forecast
         do {
-            guard let url = URL(string: forecastUrlString) else { throw URLError(.badURL) }
             let (data, response) = try await URLSession.shared.data(from: url)
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
             
-            // Set the date decoding strategy for Unix timestamps
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .secondsSince1970 
-            
-            let decodedResponse = try decoder.decode(ForecastResponse.self, from: data)
-            self.forecastData = decodedResponse
-        } catch {
-            // Note: Forecast failure is secondary, don't overwrite primary weather error
-            if self.errorMessage == nil {
-                 self.errorMessage = "Failed to fetch forecast data. Details: \(error.localizedDescription)"
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+                print("OpenWeatherMap Error: HTTP Status \(status)")
+                self.errorMessage = "Failed to fetch weather. Check API key or network connection. Status: \(status)"
+                return
             }
+            
+            let decodedResponse = try JSONDecoder().decode(OpenWeatherResponse.self, from: data)
+            self.weatherData = decodedResponse
+            
+            // --- NEW: Schedule Notification upon successful fetch ---
+            NotificationManager().scheduleDailyWeatherNotification(for: location, weatherData: decodedResponse)
+            
+        } catch {
+            print("OpenWeatherMap Decoding/Network Error: \(error.localizedDescription)")
+            self.errorMessage = "Failed to decode weather data or network error. Details: \(error.localizedDescription)"
         }
     }
 }
 
-
-// MARK: - OpenWeatherMap Data Models (UPDATED to CurrentWeatherResponse)
-typealias OpenWeatherResponse = CurrentWeatherResponse // Alias for existing code compatibility
-
-struct CurrentWeatherResponse: Codable {
+// MARK: - OpenWeatherMap Data Models
+// FIX 1: Simplify Main struct to include all necessary data and remove MainDetails/CodingKeys
+struct OpenWeatherResponse: Codable {
     let name: String
     let main: Main
     let weather: [Weather]
@@ -283,8 +194,8 @@ struct CurrentWeatherResponse: Codable {
         let feels_like: Double
         let temp_min: Double
         let temp_max: Double
-        let pressure: Int
-        let humidity: Int
+        let pressure: Int // ADDED
+        let humidity: Int // ADDED
     }
 
     struct Weather: Codable {
@@ -309,31 +220,11 @@ struct CurrentWeatherResponse: Codable {
     }
 }
 
-// NEW: Model for 5-day / 3-hour forecast
-struct ForecastResponse: Codable {
-    let list: [ForecastItem]
+// MARK: - Data Models (Existing)
+struct SearchResult: Identifiable {
+    let id = UUID()
+    let placemark: MKPlacemark
 }
-
-struct ForecastItem: Codable, Identifiable {
-    let dt: Date
-    let main: CurrentWeatherResponse.Main
-    let weather: [CurrentWeatherResponse.Weather]
-    
-    var id: Date { dt }
-    
-    var hour: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h a"
-        return formatter.string(from: dt)
-    }
-    
-    var day: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE"
-        return formatter.string(from: dt)
-    }
-}
-
 
 // MARK: - Helper Views (Existing)
 struct LottieView: UIViewRepresentable {

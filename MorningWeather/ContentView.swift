@@ -54,7 +54,6 @@ struct DynamicBackgroundView: View {
 // --- END Dynamic Background View ---
 
 
-// --- CONTENT VIEW BODY (without DynamicBackgroundView) ---
 struct ContentView: View {
     @State private var searchText = ""
     @State private var searchResults: [SearchResult] = []
