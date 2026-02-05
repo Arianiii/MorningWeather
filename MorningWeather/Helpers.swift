@@ -271,6 +271,44 @@ struct FloatingIcon: View {
     }
 }
 
+// --- NEW: Weather Card View ---
+struct WeatherCardView: View {
+    let weather: OpenWeatherResponse
+    let locationName: String
+
+    var body: some View {
+        VStack(spacing: 15) {
+            Text(locationName)
+                .font(.largeTitle)
+                .fontWeight(.bold)
+                .padding(.top)
+            
+            // Weather Animation
+            if let condition = weather.weather.first?.main {
+                WeatherAnimationView(openWeatherConditionMain: condition)
+                    .frame(height: 180)
+            }
+            
+            Text("\(Int(weather.main.temp))°C")
+                .font(.system(size: 80, weight: .bold))
+            
+            Text(weather.weather.first?.description ?? "")
+                .font(.headline)
+            
+            Text("Feels like: \(Int(weather.main.feels_like))°C")
+                .font(.subheadline)
+                .opacity(0.8)
+        }
+        .foregroundColor(.white)
+        .padding(20)
+        .background(.ultraThinMaterial) // The glassy effect
+        .cornerRadius(25)
+        .shadow(radius: 15)
+        .padding(.horizontal)
+    }
+}
+
+
 // --- NEW: Custom Splash Screen View ---
 struct SplashScreenView: View {
     var body: some View {
@@ -321,9 +359,9 @@ extension MKPlacemark {
     var title: String? {
         let name = self.name ?? ""
         let locality = self.locality ?? ""
-        let letCountry = self.countryCode ?? ""
-        if !name.isEmpty { return "\(name), \(letCountry)" }
-        if !locality.isEmpty { return "\(locality), \(letCountry)" }
-        return letCountry
+        let country = self.countryCode ?? ""
+        if !name.isEmpty { return "\(name), \(country)" }
+        if !locality.isEmpty { return "\(locality), \(country)" }
+        return country
     }
 }

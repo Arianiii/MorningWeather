@@ -25,7 +25,6 @@ struct ContentView: View {
             }
             
             VStack(spacing: 20) {
-                // --- MODIFIED LOGIC HERE ---
                 // Show search section if no location is selected AND (not loading current location OR an error occurred)
                 if selectedLocation == nil && (!weatherService.isLoadingLocation || weatherService.errorMessage != nil) {
                     searchSection
@@ -43,7 +42,6 @@ struct ContentView: View {
                     print("Notification authorization denied: \(error.localizedDescription)")
                 }
             }
-            // Automatic current location fetching is removed from here
         }
         .onChange(of: searchText, perform: searchLocations)
     }
@@ -52,7 +50,6 @@ struct ContentView: View {
         VStack {
             Spacer()
             Text("Find Your Weather").font(.largeTitle).bold().foregroundColor(.white)
-            // Only show loading for current location if it's actually attempting to fetch it
             if weatherService.isLoadingLocation && weatherService.errorMessage == nil {
                 ProgressView().tint(.white)
                 Text("Getting your current location...").foregroundColor(.white.opacity(0.8))
@@ -67,13 +64,11 @@ struct ContentView: View {
                     .listStyle(.plain).cornerRadius(10).padding(.horizontal)
                 }
                 
-                // --- NEW: Current Location Button ---
                 Button(action: { weatherService.fetchCurrentLocationWeather() }) {
                     Label("Use Current Location", systemImage: "location.fill")
                 }
                 .buttonStyle(.borderedProminent)
                 .padding(.top, 10)
-                // --- END NEW ---
             }
             Spacer()
         }
@@ -95,14 +90,8 @@ struct ContentView: View {
                 .buttonStyle(.borderedProminent)
                 
             } else if let weather = weatherService.weatherData, let locationName = selectedLocation?.title ?? Optional(weather.name) {
-                Text(locationName).font(.largeTitle).padding(.top)
-                if let condition = weather.weather.first?.main {
-                    WeatherAnimationView(openWeatherConditionMain: condition)
-                        .frame(height: 200)
-                }
-                Text("\(Int(weather.main.temp))°C").font(.system(size: 60, weight: .bold))
-                Text(weather.weather.first?.description ?? "").font(.headline)
-                Text("Feels like: \(Int(weather.main.feels_like))°C").font(.subheadline).opacity(0.8)
+                // Use the new WeatherCardView here
+                WeatherCardView(weather: weather, locationName: locationName)
                 
             } else if weatherService.isLoadingLocation {
                 ProgressView().tint(.white)
