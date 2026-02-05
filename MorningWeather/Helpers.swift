@@ -2,42 +2,37 @@
 import SwiftUI
 import MapKit
 import Lottie
-import CoreLocation // Needed for CLLocationManagerDelegate
+import CoreLocation
+import Foundation // Added for NSObject
 
 // MARK: - Weather Service (using OpenWeatherMap)
-@MainActor
-class WeatherService: ObservableObject, CLLocationManagerDelegate {
+class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate { // Inherit from NSObject
     @Published var weatherData: OpenWeatherResponse?
     @Published var errorMessage: String?
     @Published var isLoadingLocation = false
 
     private let apiKey = "dca771ea4f512ddfece257fb57686565"
-    private let locationManager = CLLocationManager() // 1. Instantiate CLLocationManager
+    private let locationManager = CLLocationManager()
     
-    override init() {
+    override init() { // Required override
         super.init()
-        self.locationManager.delegate = self // Set delegate
-        // Request location authorization when the service is initialized
+        self.locationManager.delegate = self
         locationManager.requestWhenInUseAuthorization()
     }
 
-    // Function to start fetching current location
     func fetchCurrentLocationWeather() {
         isLoadingLocation = true
-        locationManager.requestLocation() // Request one-time location update
+        locationManager.requestLocation()
     }
 
-    // CLLocationManagerDelegate methods
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
-            // If authorized, try to fetch location immediately
             manager.requestLocation()
         case .denied, .restricted:
             self.errorMessage = "Location access denied. Please enable in Settings for current weather."
             isLoadingLocation = false
         case .notDetermined:
-            // Authorization not yet determined, request it
             manager.requestWhenInUseAuthorization()
         @unknown default:
             self.errorMessage = "Unknown location authorization status."
@@ -51,7 +46,6 @@ class WeatherService: ObservableObject, CLLocationManagerDelegate {
             self.errorMessage = "Could not determine current location."
             return
         }
-        // Once we have a location, fetch weather for it
         Task { await fetchWeather(for: location) }
     }
     
@@ -93,12 +87,11 @@ class WeatherService: ObservableObject, CLLocationManagerDelegate {
 }
 
 // MARK: - OpenWeatherMap Data Models
-// Structure to match the OpenWeatherMap API response for current weather
 struct OpenWeatherResponse: Codable {
     let name: String
     let main: Main
     let weather: [Weather]
-    let sys: Sys // Added for sunrise/sunset times
+    let sys: Sys
 
     struct Main: Codable {
         let temp: Double
@@ -109,17 +102,16 @@ struct OpenWeatherResponse: Codable {
 
     struct Weather: Codable {
         let id: Int
-        let main: String // e.g., "Clear", "Clouds", "Rain"
-        let description: String // e.g., "clear sky", "few clouds"
-        let icon: String // e.g., "01d", "04n"
+        let main: String
+        let description: String
+        let icon: String
     }
     
     struct Sys: Codable {
-        let sunrise: Date // Unix timestamp
-        let sunset: Date // Unix timestamp
+        let sunrise: Date
+        let sunset: Date
     }
     
-    // Helper to determine if it's daytime based on sunrise/sunset
     var isDaytime: Bool {
         let now = Date()
         return now >= sys.sunrise && now < sys.sunset
@@ -140,7 +132,7 @@ struct LottieView: UIViewRepresentable {
     func makeUIView(context: Context) -> UIView {
         let view = UIView(frame: .zero)
         let animationView = LottieAnimationView(name: name)
-        animationView.contentMode = .scaleAspectFill // Changed to fill for background animations
+        animationView.contentMode = .scaleAspectFill
         animationView.loopMode = loopMode
         animationView.play()
         animationView.translatesAutoresizingMaskIntoConstraints = false
@@ -154,21 +146,19 @@ struct LottieView: UIViewRepresentable {
     func updateUIView(_ uiView: UIView, context: Context) {}
 }
 
-// A view that shows a Lottie animation based on the weather condition
 struct WeatherAnimationView: View {
-    let openWeatherConditionMain: String // e.g., "Clouds", "Rain", "Clear"
+    let openWeatherConditionMain: String
 
     var body: some View {
         LottieView(name: animationName, loopMode: .loop)
     }
     
-    // Helper to map OpenWeatherMap conditions to new Lottie file names
     private var animationName: String {
         switch openWeatherConditionMain.lowercased() {
         case "clear", "sunny": return "Weather-sunny"
         case "clouds", "cloudy", "fog": return "Weather-windy"
-        case "rain", "drizzle", "thunderstorm": return "Weather-night" // Using night as a rainy placeholder
-        case "snow": return "Weather-night" // Using night as a snowy placeholder
+        case "rain", "drizzle", "thunderstorm": return "Weather-night"
+        case "snow": return "Weather-night"
         default: return "Weather-windy"
         }
     }
@@ -191,7 +181,6 @@ struct FloatingIcon: View {
             }
     }
 }
-
 
 // MARK: - Extensions (Existing)
 extension Color {
