@@ -6,6 +6,12 @@ import UserNotifications
 
 // NOTE: All structs and classes for WeatherService, LocationManager, etc., are now in Helpers.swift
 
+// Defensive addition: Re-introduce SearchResult struct locally to fix scope issues
+struct SearchResult: Identifiable {
+    let id = UUID()
+    let placemark: MKPlacemark
+}
+
 struct ContentView: View {
     @State private var searchText = ""
     @State private var searchResults: [SearchResult] = []
