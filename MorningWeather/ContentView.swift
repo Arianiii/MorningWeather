@@ -1,6 +1,6 @@
 
 import SwiftUI
-import MapKit
+import MapKit // <-- The re-added import for MapKit
 
 struct ContentView: View {
     @State private var searchText = ""
