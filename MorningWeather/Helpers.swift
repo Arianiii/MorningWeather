@@ -74,7 +74,6 @@ class NotificationManager: ObservableObject {
 // MARK: - Weather Service (using OpenWeatherMap)
 class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var weatherData: OpenWeatherResponse?
-    @Published var weatherCondition: String? // Optional: to store simplified condition
     @Published var errorMessage: String?
     @Published var isLoadingLocation = false
 
@@ -83,90 +82,107 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     override init() {
         super.init()
+        print("WeatherService initialized.") // DEBUG
         self.locationManager.delegate = self
     }
 
-    // NEW PUBLIC FUNCTION TO REQUEST AUTHORIZATION
     func requestLocationAuthorization() {
+        print("Requesting location authorization...") // DEBUG
         locationManager.requestWhenInUseAuthorization()
     }
 
     func fetchCurrentLocationWeather() {
+        print("Attempting to fetch current location weather...") // DEBUG
         isLoadingLocation = true
         self.errorMessage = nil // Clear previous errors
         
         switch locationManager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
+            print("Location already authorized. Requesting location...") // DEBUG
             locationManager.requestLocation()
         case .notDetermined:
-            // If not determined, request authorization explicitly (will trigger didChangeAuthorization)
+            print("Location authorization not determined. Requesting authorization...") // DEBUG
             requestLocationAuthorization()
         case .denied, .restricted:
+            print("Location access denied or restricted. Showing error.") // DEBUG
             self.errorMessage = "Location access denied. Please enable in Settings for current weather."
             isLoadingLocation = false
         @unknown default:
+            print("Unknown location authorization status.") // DEBUG
             self.errorMessage = "Unknown location authorization status."
             isLoadingLocation = false
         }
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        print("Location authorization status changed to: \(manager.authorizationStatus.rawValue)") // DEBUG
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
+            print("Authorized. Requesting location...") // DEBUG
             manager.requestLocation()
             self.errorMessage = nil
         case .denied, .restricted:
+            print("Denied/Restricted. Setting error.") // DEBUG
             self.errorMessage = "Location access denied. Please enable in Settings for current weather."
             isLoadingLocation = false
         case .notDetermined:
+            print("Not determined. Requesting again (if needed).") // DEBUG
             manager.requestWhenInUseAuthorization()
         @unknown default:
+            print("Unknown status. Setting error.") // DEBUG
             self.errorMessage = "Unknown location authorization status."
             isLoadingLocation = false
         }
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        print("Did update locations called.") // DEBUG
         isLoadingLocation = false // Ensure loading state is reset here
         guard let location = locations.first else {
+            print("No location received.") // DEBUG
             self.errorMessage = "Could not determine current location."
             return
         }
+        print("Location received: \(location)") // DEBUG
         Task { await fetchWeather(for: location) }
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("Location Manager Error: \(error.localizedDescription)") // DEBUG
         isLoadingLocation = false // Ensure loading state is reset here
-        print("Location Manager Error: \(error.localizedDescription)")
         self.errorMessage = "Failed to get current location: \(error.localizedDescription)"
     }
 
     func fetchWeather(for location: CLLocation) async {
+        print("Starting weather fetch for location: lat \(location.coordinate.latitude), lon \(location.coordinate.longitude)") // DEBUG
         self.weatherData = nil
         self.errorMessage = nil
         
         let urlString = "https://api.openweathermap.org/data/2.5/weather?lat=\(location.coordinate.latitude)&lon=\(location.coordinate.longitude)&appid=\(apiKey)&units=metric"
         
         guard let url = URL(string: urlString) else {
+            print("Invalid API URL.") // DEBUG
             self.errorMessage = "Invalid API URL."
             return
         }
         
         do {
+            print("Fetching data from OpenWeatherMap...") // DEBUG
             let (data, response) = try await URLSession.shared.data(from: url)
             
             guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
                 let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-                print("OpenWeatherMap Error: HTTP Status \(status)")
+                print("OpenWeatherMap Error: HTTP Status \(status)") // DEBUG
                 self.errorMessage = "Failed to fetch weather. Check API key or network connection. Status: \(status)"
                 return
             }
             
             let decodedResponse = try JSONDecoder().decode(OpenWeatherResponse.self, from: data)
             self.weatherData = decodedResponse
+            print("Weather data fetched and decoded successfully for \(decodedResponse.name).") // DEBUG
             
         } catch {
-            print("OpenWeatherMap Decoding/Network Error: \(error.localizedDescription)")
+            print("OpenWeatherMap Decoding/Network Error: \(error.localizedDescription)") // DEBUG
             self.errorMessage = "Failed to decode weather data or network error. Details: \(error.localizedDescription)"
         }
     }
