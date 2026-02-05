@@ -83,7 +83,7 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
     override init() {
         super.init()
         self.locationManager.delegate = self
-        locationManager.requestWhenInUseAuthorization()
+        // Removed: locationManager.requestWhenInUseAuthorization() from here
     }
 
     func fetchCurrentLocationWeather() {
@@ -93,7 +93,9 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
             locationManager.requestLocation()
         } else if locationManager.authorizationStatus == .notDetermined {
             // If not determined, request authorization explicitly
-            locationManager.requestWhenInUseAuthorization()
+            // Removed: locationManager.requestWhenInUseAuthorization() from here (now in MorningWeatherApp)
+            self.errorMessage = "Location authorization is not yet determined. Please restart app to see prompt."
+            isLoadingLocation = false
         } else { // Denied or Restricted
             self.errorMessage = "Location access denied. Please enable in Settings for current weather."
             isLoadingLocation = false
@@ -109,6 +111,7 @@ class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.errorMessage = "Location access denied. Please enable in Settings for current weather."
             isLoadingLocation = false
         case .notDetermined:
+            // Handled in MorningWeatherApp, but keep for completeness if it needs to re-prompt mid-session
             manager.requestWhenInUseAuthorization()
         @unknown default:
             self.errorMessage = "Unknown location authorization status."
