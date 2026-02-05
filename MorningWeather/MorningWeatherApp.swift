@@ -22,7 +22,7 @@ struct MorningWeatherApp: App {
             .onAppear {
                 // --- MOVED LOCATION AND NOTIFICATION REQUESTS HERE ---
                 // 1. Request Location Authorization immediately on app launch
-                weatherService.locationManager.requestWhenInUseAuthorization()
+                weatherService.requestLocationAuthorization() // Call the new public function
                 // 2. Request Notification Authorization immediately on app launch
                 UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
                     if granted {
